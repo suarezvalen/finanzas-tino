@@ -1,7 +1,7 @@
 // Service worker: permite abrir la app sin internet.
 // Con conexión siempre trae la última versión; sin conexión usa la copia guardada.
 // Al publicar cambios, subí VERSION para limpiar copias viejas.
-const VERSION = 'v2.0.0';
+const VERSION = 'v2.0.1';
 const CACHE = `ft-${VERSION}`;
 const FONTS = 'ft-fonts';
 

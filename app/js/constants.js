@@ -1,8 +1,11 @@
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.0.1';
 
 // Sincronización (Supabase). La clave "publishable/anon" es pública por diseño:
 // los datos quedan protegidos por usuario (Row Level Security en la tabla `records`).
-export const SYNC = { url: '', key: '' };
+export const SYNC = {
+  url: 'https://amhgggejivftttyqgglx.supabase.co',
+  key: 'sb_publishable_hRqXEWGZLbQoURUhA5kzUA_9AX040lc',
+};
 
 export const INVEST_KINDS = {
   plazo_fijo: { label: 'Plazo fijo', icon: 'lock', color: '#00E5FF' },
