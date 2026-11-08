@@ -38,4 +38,13 @@ Los datos quedan guardados en cada dispositivo. Hasta la etapa 5, que agrega la 
 2. ✅ Tarjetas (cierre, vencimiento, resúmenes, pagos) y cuotas, presupuestos por categoría con avisos, pagos recurrentes (manuales o automáticos), próximos vencimientos y número en el ícono.
 3. ✅ Inversiones (plazo fijo calculado solo, FCI, acciones, CEDEARs, bonos, cripto, dólares) con ganancia y evolución, metas de ahorro con plan mensual, deudas y préstamos, patrimonio neto completo.
 4. ✅ Reportes avanzados: mes, 3 y 6 meses, año o rango; ajuste por inflación (IPC INDEC vía api.argentinadatos.com, con carga manual); comparación con el período anterior; medios de pago; patrimonio; exportar a PDF (jsPDF, en `app/vendor`, se copia con `npm run vendor`) y a Excel.
-5. Sincronización con la PC y bloqueo con PIN.
+5. ✅ Sincronización entre dispositivos (Supabase, `supabase/schema.sql`), bloqueo con PIN / Face ID y carga de varios gastos pegando el resumen de la tarjeta.
+
+## Sincronización (Supabase)
+
+1. Crear un proyecto gratis en supabase.com.
+2. SQL Editor → pegar `supabase/schema.sql` → Run.
+3. Authentication → URL Configuration → Site URL: `https://suarezvalen.github.io/finanzas-tino/`.
+4. Poner la Project URL y la clave pública (publishable/anon) en `SYNC` dentro de `app/js/constants.js`.
+
+La clave pública puede estar en el código: los datos se protegen por usuario con Row Level Security. Cada registro guarda `updatedAt` y `_remote`; al sincronizar se suben los cambios pendientes y se bajan los nuevos (`server_ts`), y gana siempre la versión más reciente.

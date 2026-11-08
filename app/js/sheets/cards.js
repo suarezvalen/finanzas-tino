@@ -8,6 +8,7 @@ import { cardStatus, pendingInstallments } from '../logic/cards.js';
 import { openAccountEdit } from './accounts.js';
 import { openAmountSheet } from './amount.js';
 import { openTx } from './tx.js';
+import { openBulk } from './bulk.js';
 import { go } from '../router.js';
 
 function cardVisual(card, s, big = false) {
@@ -101,7 +102,7 @@ export function openCard(id) {
             <span class="val">${money(g.left)}<small class="sub-val">${money(g.remaining[0].amount)}/mes</small></span></button>`;
         }).join('')}</div>`
           : `<p class="help" style="margin:0 4px">No tenés compras en cuotas pendientes. Para cargar una, elegí esta tarjeta al anotar un gasto y tocá la cantidad de cuotas.</p>`}
-        <button class="btn" data-movs style="margin-top:16px">${icon('list')}Ver movimientos de la tarjeta</button>`;
+        <div class="row" style="margin-top:16px"><button class="btn" data-movs>${icon('list')}Movimientos</button><button class="btn" data-import>${icon('file-text')}Importar resumen</button></div>`;
 
       el.onclick = e => {
         const b = e.target.closest('button');
@@ -112,6 +113,7 @@ export function openCard(id) {
         else if (d.tx) openTx(d.tx);
         else if ('pay' in d) openTx(null, { type: 'transfer', toAccountId: card.id, amount: s.toPay, note: `Pago resumen ${card.name}` });
         else if ('movs' in d) { closeAll(); go('movs', { accountId: card.id }); }
+        else if ('import' in d) openBulk({ accountId: card.id });
         else if ('override' in d) {
           openAmountSheet({
             title: 'Total del resumen',

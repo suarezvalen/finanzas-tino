@@ -80,13 +80,85 @@ export async function setup({ accounts, categories, settings }) {
 
 export async function replaceAll(data) {
   await db.clearAll();
-  for (const k of DATA_KINDS) await db.putMany(k, data[k] || []);
-  await db.putMany('meta', [{ ...DEFAULT_SETTINGS, ...data.settings, id: 'settings' }]);
-  if (data.inflation) await db.putMany('meta', [{ ...DEFAULT_INFLATION, ...data.inflation, id: 'inflation' }]);
+  // Al restaurar, todo queda como "sin subir" (y con fecha nueva) para que la nube tome esta versión.
+  const t = now();
+  const fresh = r => { const { _remote, ...rest } = r; return { ...rest, updatedAt: t }; };
+  for (const k of DATA_KINDS) await db.putMany(k, (data[k] || []).map(fresh));
+  await db.putMany('meta', [fresh({ ...DEFAULT_SETTINGS, ...data.settings, id: 'settings' })]);
+  if (data.inflation) await db.putMany('meta', [fresh({ ...DEFAULT_INFLATION, ...data.inflation, id: 'inflation' })]);
   await load();
   emit();
 }
 export const wipe = () => db.clearAll();
+
+/* ---------- Sincronización ----------
+ * Cada registro guarda en `_remote` la versión (updatedAt) que ya está en la nube.
+ * Si updatedAt es más nuevo que _remote, el registro tiene cambios sin subir.
+ * Gana siempre la versión con updatedAt más reciente.
+ */
+const metaOf = id => (id === 'settings' ? state.settings : id === 'inflation' ? state.inflation : null);
+const isDirty = r => !!r?.updatedAt && r.updatedAt > (r._remote || '');
+const toRow = (kind, r) => ({ kind, id: r.id, data: r, updated_at: r.updatedAt, deleted: !!r.deleted });
+
+/** Registros con cambios sin subir, en formato de la nube. */
+export function dirtyRows() {
+  const rows = [];
+  for (const k of DATA_KINDS) for (const r of state[k]) if (isDirty(r)) rows.push(toRow(k, r));
+  for (const id of ['settings', 'inflation']) { const m = metaOf(id); if (isDirty(m)) rows.push(toRow('meta', m)); }
+  return rows;
+}
+
+/** Marca como subidos los registros que se acaban de mandar a la nube. */
+export async function markSynced(rows) {
+  const byKind = {};
+  for (const row of rows) {
+    const rec = row.kind === 'meta' ? metaOf(row.id) : state[row.kind].find(x => x.id === row.id);
+    if (!rec || rec.updatedAt !== row.updated_at) continue; // cambió mientras se subía: queda pendiente
+    rec._remote = rec.updatedAt;
+    (byKind[row.kind] ||= []).push(rec);
+  }
+  for (const [k, recs] of Object.entries(byKind)) await db.putMany(k, recs);
+}
+
+/** Aplica cambios bajados de la nube. Devuelve cuántos registros cambiaron. */
+export async function applyRemote(rows) {
+  const byKind = {};
+  let changed = 0;
+  for (const row of rows) {
+    const data = { ...row.data, _remote: row.data?.updatedAt };
+    if (row.kind === 'meta') {
+      const cur = metaOf(row.id);
+      if (!cur || (cur.updatedAt || '') >= (data.updatedAt || '')) continue;
+      if (row.id === 'settings') state.settings = { ...DEFAULT_SETTINGS, ...data, id: 'settings' };
+      else state.inflation = { ...DEFAULT_INFLATION, ...data, id: 'inflation' };
+      (byKind.meta ||= []).push(metaOf(row.id));
+      changed++;
+      continue;
+    }
+    if (!DATA_KINDS.includes(row.kind)) continue;
+    const local = state[row.kind].find(x => x.id === row.id);
+    if (local && (local.updatedAt || '') >= (data.updatedAt || '')) {
+      if (local.updatedAt === data.updatedAt && local._remote !== data.updatedAt) { local._remote = data.updatedAt; (byKind[row.kind] ||= []).push(local); }
+      continue;
+    }
+    put(row.kind, data);
+    (byKind[row.kind] ||= []).push(data);
+    changed++;
+  }
+  for (const [k, recs] of Object.entries(byKind)) await db.putMany(k, recs);
+  if (changed) emit();
+  return changed;
+}
+
+/** ¿Este dispositivo ya tiene datos propios? */
+export const hasLocalData = () => DATA_KINDS.some(k => state[k].some(r => !r.deleted)) || state.settings.onboarded;
+
+/** Borra todo lo local y deja la app vacía (para traer los datos de la nube). */
+export async function resetLocal() {
+  await db.clearAll();
+  await load();
+  emit();
+}
 
 /* ---------- Consultas ---------- */
 const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.name.localeCompare(b.name);

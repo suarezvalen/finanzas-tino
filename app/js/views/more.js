@@ -15,12 +15,10 @@ import { openGoals } from '../sheets/goals.js';
 import { openDebts } from '../sheets/debts.js';
 import { activeInvestments } from '../logic/wealth.js';
 import { goals, debts } from '../store.js';
+import { openSync, syncLabel } from '../sheets/sync.js';
+import { openSecurity, securityLabel } from '../sheets/security.js';
+import { openBulk } from '../sheets/bulk.js';
 
-const SOON = [
-  ['chart-pie', 'Reportes avanzados', 'Períodos, inflación, PDF', 4],
-  ['cloud', 'Sincronizar con la PC', 'Tus datos en todos lados', 5],
-  ['shield-check', 'Seguridad', 'Bloqueo con PIN', 5],
-];
 
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
@@ -50,24 +48,27 @@ export function renderMore(el) {
       ${tile('investments', 'trending-up', 'Inversiones', activeInvestments().length ? plural(activeInvestments().length, 'inversión', 'inversiones') : 'Plazo fijo, FCI, cripto…')}
       ${tile('goals', 'target', 'Metas de ahorro', goals().length ? plural(goals().length, 'meta', 'metas') : 'Viajes, compras, fondos')}
       ${tile('debts', 'handshake', 'Deudas y préstamos', debts().length ? plural(debts().length, 'registro', 'registros') : 'Debo y me deben')}
+      ${tile('bulk', 'file-text', 'Cargar varios gastos', 'Pegá el resumen de la tarjeta')}
+      ${tile('sync', 'cloud', 'Sincronización', syncLabel())}
+      ${tile('security', 'shield-check', 'Seguridad', securityLabel())}
       ${tile('accounts', 'wallet', 'Cuentas', plural(nAcc, 'cuenta activa', 'cuentas activas'))}
       ${tile('categories', 'tags', 'Categorías', `${nCat} categorías`)}
       ${tile('settings', 'settings', 'Ajustes', 'Nombre y presupuesto')}
       ${tile('backup', 'download', 'Copias y Excel', 'Exportar y restaurar')}
     </div>
-    <div class="section-h"><h3>Próximamente</h3></div>
-    <div class="grid">${SOON.map(([ic, t, s, stage]) =>
-      `<button class="tile soon" data-soon="${t}" data-stage="${stage}"><span class="stage">Etapa ${stage}</span><div class="ic">${icon(ic)}</div><b>${t}</b><small>${s}</small></button>`).join('')}</div>`;
+    <p class="foot">Finanzas Tino</p>`;
 
   el.onclick = e => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.soon) return toast(`${b.dataset.soon}: llega en la etapa ${b.dataset.stage}`, { icon: 'sparkles' });
     switch (b.dataset.act) {
       case 'cards': return openCards();
       case 'budgets': return openBudgets();
       case 'recurring': return openRecurring();
       case 'upcoming': return openUpcoming();
+      case 'bulk': return openBulk();
+      case 'sync': return openSync();
+      case 'security': return openSecurity();
       case 'investments': return openInvestments();
       case 'goals': return openGoals();
       case 'debts': return openDebts();

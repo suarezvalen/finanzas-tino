@@ -67,6 +67,7 @@ export function openSettings({ focus } = {}) {
           if (!confirm('¿Borrar TODOS tus datos? Se pierden cuentas, categorías y movimientos.')) return;
           if (!confirm('Última confirmación: esto no se puede deshacer. ¿Seguro?')) return;
           await wipe();
+          for (const k of ['ft-lock', 'ft-auth', 'ft-sync']) { try { localStorage.removeItem(k); } catch { /* nada */ } }
           location.reload();
         }
       };

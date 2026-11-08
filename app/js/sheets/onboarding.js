@@ -3,6 +3,7 @@ import { setup } from '../store.js';
 import { icon } from '../icons.js';
 import { esc, amountInput, parseAmount } from '../ui.js';
 import { ACCOUNT_TYPES, DEFAULT_ACCOUNTS, DEFAULT_CATEGORIES } from '../constants.js';
+import { openSync } from './sync.js';
 
 export function startOnboarding(done) {
   const el = document.createElement('div');
@@ -20,7 +21,8 @@ export function startOnboarding(done) {
         <p>Anotá gastos en segundos, mirá a dónde va tu plata y seguí tus cuentas. Todo queda guardado en tu celular.</p>
         <div class="field"><label for="obn">¿Cómo te llamás?</label><input class="input" id="obn" maxlength="30" autocomplete="given-name" placeholder="Tu nombre" value="${esc(F.name)}"></div>
       </div>
-      <div class="ob-foot"><button class="btn primary" data-next>Empezar ${icon('chevron-right')}</button></div>${dots()}`;
+      <div class="ob-foot"><button class="btn primary" data-next>Empezar ${icon('chevron-right')}</button></div>
+      <button class="link ob-login" data-login>${icon('cloud')}Ya uso Finanzas en otro dispositivo</button>${dots()}`;
       el.querySelector('#obn').oninput = e => { F.name = e.target.value; };
     } else if (F.step === 1) {
       el.innerHTML = `<div class="ob-body">
@@ -65,6 +67,10 @@ export function startOnboarding(done) {
       return;
     }
     if ('back' in d) { F.step--; render(); return; }
+    if ('login' in d) {
+      openSync({ onboarding: true, onDone: () => { el.classList.add('out'); setTimeout(() => el.remove(), 450); done(); } });
+      return;
+    }
     if ('next' in d) {
       if (F.step === 1 && !F.accs.some(a => a.on)) { alert('Elegí al menos una cuenta.'); return; }
       F.step++; render(); return;

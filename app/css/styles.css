@@ -405,3 +405,39 @@ h1, h2, h3 { font-weight: 600; }
 .bars.dense .pair i { width: 7px; }
 .bars.dense .pair { gap: 2px; }
 .bars.dense .m span { font-size: 10px; }
+
+/* ---------- Etapa 5 ---------- */
+.onboard ~ .scrim, .onboard ~ .sheet { z-index: 35; }
+.ob-login { justify-content: center; margin: 14px auto 0; font-size: 14px; position: relative; }
+.ob-login svg { width: 16px; height: 16px; }
+.sync-hero { display: flex; gap: 12px; align-items: center; background: rgba(0, 229, 255, .06); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; margin-bottom: 16px; }
+.sync-hero > svg { width: 28px; height: 28px; color: var(--accent); filter: drop-shadow(0 0 8px rgba(0, 229, 255, .6)); }
+.sync-hero p { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.help svg { width: 13px; height: 13px; vertical-align: -2px; color: var(--accent); }
+.lock { position: absolute; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; padding: calc(var(--st) + 30px) 24px calc(var(--sb) + 20px); transition: opacity .3s; }
+.lock::before { content: ""; position: absolute; left: -30%; right: -30%; top: -120px; height: 420px; background: radial-gradient(closest-side, rgba(0, 229, 255, .16), transparent 75%); pointer-events: none; }
+.lock.out { opacity: 0; pointer-events: none; }
+.lock-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.lock-body .ob-logo { width: 72px; height: 72px; margin-bottom: 18px; }
+.lock-body h2 { font-family: var(--display); font-size: 22px; margin-bottom: 18px; }
+.pin-dots { display: flex; gap: 16px; justify-content: center; margin: 6px 0 4px; }
+.pin-dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); transition: .15s; }
+.pin-dots i.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.pin-dots.big { margin: 24px 0 10px; }
+.pin-dots.shake { animation: shake .4s; }
+@keyframes shake { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.lock-msg { text-align: center; font-size: 13px; color: var(--muted); min-height: 18px; margin-bottom: 8px; }
+.lock-pad { position: relative; }
+.lock-pad button { height: 58px; font-size: 24px; border-radius: 18px; }
+.lock-pad span { display: block; }
+.lock-forgot { margin: 16px auto 0; font-size: 13px; position: relative; }
+.textarea { height: 170px; padding: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5; resize: vertical; }
+.bulk-row { align-items: flex-start; }
+.bulk-row.off .info, .bulk-row.off .val { opacity: .4; }
+.bulk-row .ob-toggle { margin-top: 2px; }
+.bulk-row .ob-toggle.on { background: var(--accent); color: #00141a; border-color: var(--accent); }
+.bulk-row .info b { white-space: normal; line-height: 1.3; }
+.bulk-row .info small { white-space: normal; }
+.mini-cat { --c: var(--accent); display: inline-flex; align-items: center; gap: 5px; margin-top: 6px; padding: 4px 9px; border-radius: 9px; font-size: 11.5px; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.mini-cat svg { width: 13px; height: 13px; }
+.cat-pick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 4px; }
