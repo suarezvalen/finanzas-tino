@@ -1,0 +1,15 @@
+{
+  "name": "finanzas-tino",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "App personal de finanzas (PWA) para iPhone y PC",
+  "scripts": {
+    "dev": "node tools/serve.mjs",
+    "icons": "node tools/build-icons.mjs",
+    "app-icons": "node tools/make-app-icons.mjs"
+  },
+  "devDependencies": {
+    "lucide-static": "0.460.0"
+  }
+}

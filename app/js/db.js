@@ -1,0 +1,49 @@
+// Base de datos local (IndexedDB). Todo queda guardado en el dispositivo.
+const DB_NAME = 'finanzas-tino';
+const VERSION = 1;
+export const STORES = ['accounts', 'categories', 'transactions', 'meta'];
+
+let dbPromise;
+function open() {
+  dbPromise ||= new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
+export async function getAll(store) {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(store).objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function putMany(store, items) {
+  if (!items.length) return;
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    const os = tx.objectStore(store);
+    for (const item of items) os.put(item);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function clearAll() {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES, 'readwrite');
+    for (const s of STORES) tx.objectStore(s).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
