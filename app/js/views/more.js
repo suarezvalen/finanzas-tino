@@ -10,11 +10,14 @@ import { openBudgets } from '../sheets/budgets.js';
 import { openRecurring } from '../sheets/recurring.js';
 import { openUpcoming } from '../sheets/upcoming.js';
 import { upcomingItems } from '../logic/recurring.js';
+import { openInvestments } from '../sheets/investments.js';
+import { openGoals } from '../sheets/goals.js';
+import { openDebts } from '../sheets/debts.js';
+import { activeInvestments } from '../logic/wealth.js';
+import { goals, debts } from '../store.js';
 
 const SOON = [
-  ['trending-up', 'Inversiones', 'Plazo fijo, FCI, CEDEARs, cripto', 3],
-  ['target', 'Metas de ahorro', 'Viajes, compras, fondo de emergencia', 3],
-  ['hand-coins', 'Deudas y préstamos', 'Lo que debés y lo que te deben', 3],
+  ['chart-pie', 'Reportes avanzados', 'Períodos, inflación, PDF', 4],
   ['cloud', 'Sincronizar con la PC', 'Tus datos en todos lados', 5],
   ['shield-check', 'Seguridad', 'Bloqueo con PIN', 5],
 ];
@@ -44,6 +47,9 @@ export function renderMore(el) {
       ${tile('budgets', 'gauge', 'Presupuestos', nBudgets ? plural(nBudgets, 'categoría con límite', 'categorías con límite') : 'Total y por categoría')}
       ${tile('recurring', 'repeat', 'Pagos recurrentes', nRec ? plural(nRec, 'activo', 'activos') : 'Alquiler, servicios, sueldo')}
       ${tile('upcoming', 'calendar-clock', 'Vencimientos', nUp ? `${nUp} en los próximos 15 días` : 'Nada por vencer')}
+      ${tile('investments', 'trending-up', 'Inversiones', activeInvestments().length ? plural(activeInvestments().length, 'inversión', 'inversiones') : 'Plazo fijo, FCI, cripto…')}
+      ${tile('goals', 'target', 'Metas de ahorro', goals().length ? plural(goals().length, 'meta', 'metas') : 'Viajes, compras, fondos')}
+      ${tile('debts', 'handshake', 'Deudas y préstamos', debts().length ? plural(debts().length, 'registro', 'registros') : 'Debo y me deben')}
       ${tile('accounts', 'wallet', 'Cuentas', plural(nAcc, 'cuenta activa', 'cuentas activas'))}
       ${tile('categories', 'tags', 'Categorías', `${nCat} categorías`)}
       ${tile('settings', 'settings', 'Ajustes', 'Nombre y presupuesto')}
@@ -62,6 +68,9 @@ export function renderMore(el) {
       case 'budgets': return openBudgets();
       case 'recurring': return openRecurring();
       case 'upcoming': return openUpcoming();
+      case 'investments': return openInvestments();
+      case 'goals': return openGoals();
+      case 'debts': return openDebts();
       case 'accounts': return openAccounts();
       case 'categories': return openCategories();
       case 'settings':

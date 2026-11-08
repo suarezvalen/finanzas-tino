@@ -4,6 +4,7 @@ import { icon } from '../icons.js';
 import { openSheet, toast, esc, amountInput, parseAmount, fmtNum, saveFile } from '../ui.js';
 import { today } from '../dates.js';
 import { APP_VERSION } from '../constants.js';
+import { linkInfo } from '../components.js';
 
 const listItem = (attr, ic, title, sub, color = '') =>
   `<button class="item tap" ${attr}><span class="cat-ic" ${color ? `style="--c:${color}"` : ''}>${icon(ic)}</span>
@@ -74,13 +75,16 @@ export function openSettings({ focus } = {}) {
 }
 
 async function exportBackup() {
-  const { accounts, categories, transactions, recurring, settings } = state;
-  const data = { app: 'finanzas-tino', format: 2, exportedAt: new Date().toISOString(), accounts, categories, transactions, recurring, settings };
+  const { accounts, categories, transactions, recurring, investments, goals, debts, settings } = state;
+  const data = {
+    app: 'finanzas-tino', format: 3, exportedAt: new Date().toISOString(),
+    accounts, categories, transactions, recurring, investments, goals, debts, settings,
+  };
   await saveFile(`finanzas-tino-copia-${today()}.json`, JSON.stringify(data, null, 1), 'application/json');
 }
 
 async function exportCsv() {
-  const TYPE = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia' };
+  const TYPE = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia', in: 'Entrada', out: 'Salida' };
   const cell = v => {
     const s = String(v ?? '');
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -88,9 +92,9 @@ async function exportCsv() {
   const rows = [['Fecha', 'Tipo', 'Monto', 'Categoría', 'Cuenta', 'Cuenta destino', 'Nota', 'Cuota']];
   for (const t of sortedTxs(txs()).reverse()) {
     rows.push([
-      t.date, TYPE[t.type], t.type === 'expense' ? -t.amount : t.amount,
-      getCategory(t.categoryId)?.name || '', getAccount(t.accountId)?.name || '',
-      getAccount(t.toAccountId)?.name || '', t.note || '',
+      t.date, TYPE[t.type], t.type === 'expense' || t.type === 'out' ? -t.amount : t.amount,
+      getCategory(t.categoryId)?.name || (t.link ? linkInfo(t).label : ''), getAccount(t.accountId)?.name || '',
+      getAccount(t.toAccountId)?.name || (t.link ? linkInfo(t).title : ''), t.note || '',
       t.installment ? `${t.installment.n}/${t.installment.total}` : '',
     ]);
   }

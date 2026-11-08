@@ -1,8 +1,12 @@
 // Pantalla de inicio.
-import { state, accounts, balance, monthStats, sortedTxs, txs, netWorthSeries, saveSettings, getAccount } from '../store.js';
+import { state, accounts, balance, monthStats, sortedTxs, txs, saveSettings, getAccount, goals, debts } from '../store.js';
 import { icon } from '../icons.js';
 import { money, esc } from '../ui.js';
-import { txItem, accIcon, empty, upcomingItem } from '../components.js';
+import { txItem, accIcon, empty, upcomingItem, sparkline, ring } from '../components.js';
+import { wealthAt, netWorthSeries, activeInvestments, investStats, goalPlan } from '../logic/wealth.js';
+import { openInvestments } from '../sheets/investments.js';
+import { openGoals } from '../sheets/goals.js';
+import { openDebts } from '../sheets/debts.js';
 import { today, curYm, daysInMonth, cap, monthName } from '../dates.js';
 import { go } from '../router.js';
 import { openTx } from '../sheets/tx.js';
@@ -15,17 +19,6 @@ import { upcomingItems, alertCount } from '../logic/recurring.js';
 function greeting() {
   const h = new Date().getHours();
   return h < 6 ? 'Buenas noches' : h < 13 ? 'Buen día' : h < 20 ? 'Buenas tardes' : 'Buenas noches';
-}
-
-function sparkline(vals) {
-  if (vals.length < 2) return '';
-  const W = 120, H = 40, min = Math.min(...vals), max = Math.max(...vals);
-  const y = v => (max === min ? H / 2 : H - 4 - ((v - min) / (max - min)) * (H - 8));
-  const pts = vals.map((v, i) => `${((i / (vals.length - 1)) * W).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
-    <defs><linearGradient id="sg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#00E5FF" stop-opacity=".35"/><stop offset="1" stop-color="#00E5FF" stop-opacity="0"/></linearGradient></defs>
-    <polygon points="0,${H} ${pts} ${W},${H}" fill="url(#sg)"/>
-    <polyline points="${pts}" fill="none" stroke="#00E5FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
 function budgetCard(st, ym) {
@@ -52,13 +45,43 @@ function budgetCard(st, ym) {
       : `<span class="neg">Te pasaste por <b class="neg">${money(-left)}</b></span>`}</div>${alertChips}</button>`;
 }
 
+/** Resumen de inversiones, metas y préstamos (solo si hay alguno). */
+function wealthSection() {
+  const invs = activeInvestments().map(i => investStats(i));
+  const gs = goals().map(g => ({ g, p: goalPlan(g) })).filter(x => x.p.left > 0).sort((a, b) => b.p.pct - a.p.pct);
+  const hasDebts = debts().length > 0;
+  if (!invs.length && !gs.length && !hasDebts) return '';
+  const w = wealthAt();
+  const tiles = [];
+  if (invs.length) {
+    const v = invs.reduce((s, x) => s + x.value, 0);
+    const gain = invs.reduce((s, x) => s + x.gain, 0);
+    const base = invs.reduce((s, x) => s + x.invested, 0);
+    const pct = base > 0 ? Math.abs((gain / base) * 100).toFixed(1).replace('.', ',') : '0';
+    tiles.push(`<button class="tile wt" data-act="investments"><small>Inversiones</small><b>${money(v)}</b>
+      <span class="${gain >= 0 ? 'pos' : 'neg'}">${gain >= 0 ? '▲' : '▼'} ${pct}%</span></button>`);
+  }
+  if (gs.length) {
+    const { g, p } = gs[0];
+    tiles.push(`<button class="tile wt goal-tile" data-act="goals"><div><small>Meta</small><b>${esc(g.name)}</b>
+      <span>${Math.round(p.pct * 100)}% · faltan ${money(p.left)}</span></div>${ring(p.pct, 40, g.color, 5)}</button>`);
+  }
+  if (hasDebts) {
+    const bal = w.owed - w.owe;
+    tiles.push(`<button class="tile wt" data-act="debts"><small>Préstamos</small>
+      <b class="${bal >= 0 ? 'pos' : 'neg'}">${bal >= 0 ? '+' : '−'}${money(Math.abs(bal))}</b>
+      <span>Me deben ${money(w.owed)} · debo ${money(w.owe)}</span></button>`);
+  }
+  return `<div class="section-h"><h3>Patrimonio</h3></div><div class="grid wealth ${tiles.length === 1 ? 'one' : ''}">${tiles.join('')}</div>`;
+}
+
 export function renderHome(el) {
   const s = state.settings;
   const ym = curYm();
   const t = today();
   const accs = accounts();
   const avail = accs.filter(a => a.type !== 'credit').reduce((x, a) => x + balance(a), 0);
-  const net = accs.reduce((x, a) => x + balance(a), 0);
+  const net = wealthAt().net;
   const st = monthStats(ym);
   const recent = sortedTxs(txs().filter(x => x.date <= t)).slice(0, 6);
   const upcoming = upcomingItems(15);
@@ -89,6 +112,8 @@ export function renderHome(el) {
     ${upcoming.length ? `<div class="section-h"><h3>Próximos vencimientos</h3><button data-act="upcoming">Ver todos</button></div>
       <div class="list">${upcoming.slice(0, 4).map(upcomingItem).join('')}</div>` : ''}
 
+    ${wealthSection()}
+
     <div class="section-h"><h3>Cuentas</h3><button data-act="accounts">Administrar</button></div>
     <div class="accounts">
       ${accs.map(a => {
@@ -118,6 +143,9 @@ export function renderHome(el) {
       case 'accounts': return openAccounts();
       case 'new-account': return openAccountEdit();
       case 'all': return go('movs', {});
+      case 'investments': return openInvestments();
+      case 'goals': return openGoals();
+      case 'debts': return openDebts();
     }
   };
 }

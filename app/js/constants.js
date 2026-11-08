@@ -1,4 +1,20 @@
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
+
+export const INVEST_KINDS = {
+  plazo_fijo: { label: 'Plazo fijo', icon: 'lock', color: '#00E5FF' },
+  fci:        { label: 'Fondo común (FCI)', icon: 'chart-line', color: '#2F7BFF' },
+  acciones:   { label: 'Acciones', icon: 'trending-up', color: '#7CFFCB' },
+  cedears:    { label: 'CEDEARs', icon: 'globe', color: '#5CC8FF' },
+  bonos:      { label: 'Bonos / ONs', icon: 'scroll-text', color: '#94A3FF' },
+  cripto:     { label: 'Cripto', icon: 'bitcoin', color: '#C084FC' },
+  dolares:    { label: 'Dólares', icon: 'dollar-sign', color: '#2EF2A0' },
+  otro:       { label: 'Otra', icon: 'gem', color: '#FFB547' },
+};
+
+export const GOAL_ICONS = [
+  'target', 'plane', 'tree-palm', 'car', 'house', 'sofa', 'laptop', 'smartphone', 'graduation-cap', 'gift',
+  'heart', 'baby', 'paw-print', 'umbrella', 'shield-check', 'trophy', 'gem', 'piggy-bank', 'music', 'dumbbell', 'party-popper',
+];
 
 export const ACCOUNT_TYPES = {
   cash:    { label: 'Efectivo',           icon: 'wallet' },

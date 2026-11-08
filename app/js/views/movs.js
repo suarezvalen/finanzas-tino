@@ -2,12 +2,12 @@
 import { txs, sortedTxs, accounts, getAccount, getCategory } from '../store.js';
 import { icon } from '../icons.js';
 import { signed, esc, normalize, ensureVisible, mark } from '../ui.js';
-import { txItem, accIcon, monthSwitcher, empty } from '../components.js';
+import { txItem, accIcon, monthSwitcher, empty, linkInfo } from '../components.js';
 import { curYm, addMonths, monthTitle, dayLabel } from '../dates.js';
 import { openTx } from '../sheets/tx.js';
 
 const F = { ym: curYm(), type: 'all', accountId: null, categoryId: null, q: '' };
-const TYPES = [['all', 'Todos', 'layers'], ['expense', 'Gastos', 'arrow-up-right'], ['income', 'Ingresos', 'arrow-down-left'], ['transfer', 'Transferencias', 'arrow-left-right']];
+const TYPES = [['all', 'Todos', 'layers'], ['expense', 'Gastos', 'arrow-up-right'], ['income', 'Ingresos', 'arrow-down-left'], ['transfer', 'Otros movimientos', 'arrow-left-right']];
 
 export function renderMovs(el, params) {
   if (params) Object.assign(F, { ym: curYm(), type: 'all', accountId: null, categoryId: null, q: '' }, params);
@@ -51,12 +51,14 @@ export function renderMovs(el, params) {
 function filtered() {
   const needle = normalize(F.q.trim());
   let list = needle ? txs() : txs().filter(t => t.date.startsWith(F.ym));
-  if (F.type !== 'all') list = list.filter(t => t.type === F.type);
+  if (F.type === 'transfer') list = list.filter(t => ['transfer', 'in', 'out'].includes(t.type));
+  else if (F.type !== 'all') list = list.filter(t => t.type === F.type);
   if (F.accountId) list = list.filter(t => t.accountId === F.accountId || t.toAccountId === F.accountId);
   if (F.categoryId) list = list.filter(t => t.categoryId === F.categoryId);
   if (needle) {
     list = list.filter(t => normalize([
       t.note, getCategory(t.categoryId)?.name, getAccount(t.accountId)?.name, getAccount(t.toAccountId)?.name, t.amount,
+      t.link ? linkInfo(t).title : '',
     ].join(' ')).includes(needle));
   }
   return sortedTxs(list);

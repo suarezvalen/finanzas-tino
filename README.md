@@ -36,6 +36,6 @@ Los datos quedan guardados en cada dispositivo. Hasta la etapa 5, que agrega la 
 
 1. ✅ Base: cuentas, categorías, gastos, ingresos, transferencias, inicio, movimientos, reportes, copias.
 2. ✅ Tarjetas (cierre, vencimiento, resúmenes, pagos) y cuotas, presupuestos por categoría con avisos, pagos recurrentes (manuales o automáticos), próximos vencimientos y número en el ícono.
-3. Inversiones, metas de ahorro, deudas y préstamos.
+3. ✅ Inversiones (plazo fijo calculado solo, FCI, acciones, CEDEARs, bonos, cripto, dólares) con ganancia y evolución, metas de ahorro con plan mensual, deudas y préstamos, patrimonio neto completo.
 4. Reportes avanzados (períodos, ajuste por inflación, exportar PDF).
 5. Sincronización con la PC y bloqueo con PIN.

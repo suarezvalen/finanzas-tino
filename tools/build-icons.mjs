@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
-const { CATEGORY_ICONS, ACCOUNT_TYPES } = await import(pathToFileURL(path.join(root, 'app/js/constants.js')).href);
+const { CATEGORY_ICONS, ACCOUNT_TYPES, INVEST_KINDS, GOAL_ICONS } = await import(pathToFileURL(path.join(root, 'app/js/constants.js')).href);
 
 const UI_ICONS = [
   'house', 'list', 'plus', 'chart-pie', 'layout-grid', 'eye', 'eye-off', 'search', 'x', 'check',
@@ -15,9 +15,13 @@ const UI_ICONS = [
   'archive-restore', 'target', 'gauge', 'repeat', 'shield-check', 'file-spreadsheet', 'bell-ring',
   'cloud', 'share', 'square-plus', 'triangle-alert', 'info', 'layers', 'credit-card', 'hand-coins',
   'trending-up', 'sparkles', 'chevron-down', 'wallet', 'pencil', 'bell', 'calendar-clock', 'skip-forward', 'pause', 'play',
+  'handshake', 'refresh-cw', 'arrow-down-to-line', 'arrow-up-from-line', 'minus', 'user', 'flag', 'circle-dollar-sign',
 ];
 
-const names = [...new Set([...UI_ICONS, ...CATEGORY_ICONS, ...Object.values(ACCOUNT_TYPES).map(t => t.icon)])].sort();
+const names = [...new Set([
+  ...UI_ICONS, ...CATEGORY_ICONS, ...GOAL_ICONS,
+  ...Object.values(ACCOUNT_TYPES).map(t => t.icon), ...Object.values(INVEST_KINDS).map(t => t.icon),
+])].sort();
 const dir = path.join(root, 'node_modules/lucide-static/icons');
 const out = {};
 const missing = [];

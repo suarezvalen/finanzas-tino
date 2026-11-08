@@ -2,12 +2,15 @@
 // Cada registro tiene id, createdAt, updatedAt y deleted (borrado lógico),
 // pensado para poder sincronizar con la PC más adelante.
 import * as db from './db.js';
-import { curYm, today, addMonths, daysInMonth, pad } from './dates.js';
+import { curYm, today } from './dates.js';
 
 const DEFAULT_SETTINGS = { id: 'settings', name: '', budget: 0, hideAmounts: false, onboarded: false, lastAccount: {} };
-export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring'];
+export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts'];
 
-export const state = { accounts: [], categories: [], transactions: [], recurring: [], settings: { ...DEFAULT_SETTINGS } };
+export const state = {
+  accounts: [], categories: [], transactions: [], recurring: [], investments: [], goals: [], debts: [],
+  settings: { ...DEFAULT_SETTINGS },
+};
 
 const listeners = new Set();
 export const subscribe = fn => listeners.add(fn);
@@ -86,11 +89,22 @@ export const recurrings = () => live('recurring').sort((a, b) => a.day - b.day |
 export const getAccount = id => state.accounts.find(a => a.id === id);
 export const getCategory = id => state.categories.find(c => c.id === id);
 export const getRecurring = id => state.recurring.find(r => r.id === id);
+const byCreated = (a, b) => (a.createdAt || '').localeCompare(b.createdAt || '');
+export const investments = () => live('investments').sort(byCreated);
+export const goals = () => live('goals').sort(byCreated);
+export const debts = () => live('debts').sort(byCreated);
+export const getInvestment = id => state.investments.find(x => x.id === id);
+export const getGoal = id => state.goals.find(x => x.id === id);
+export const getDebt = id => state.debts.find(x => x.id === id);
 
-/** Cuánto cambia el saldo de una cuenta por un movimiento. */
+/**
+ * Cuánto cambia el saldo de una cuenta por un movimiento.
+ * Tipos: income / expense / transfer, y desde la etapa 3 'in' / 'out':
+ * plata que entra o sale de una cuenta hacia una inversión o un préstamo (no es ingreso ni gasto).
+ */
 export function txEffect(t, accId) {
   let v = 0;
-  if (t.accountId === accId) v -= t.type === 'income' ? -t.amount : t.amount;
+  if (t.accountId === accId) v += t.type === 'income' || t.type === 'in' ? t.amount : -t.amount;
   if (t.type === 'transfer' && t.toAccountId === accId) v += t.amount;
   return v;
 }
@@ -120,15 +134,3 @@ export const categorySpent = (catId, ym = curYm()) =>
 
 export const sortedTxs = (list = txs()) =>
   [...list].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
-
-export function netWorthSeries(months = 6) {
-  const accs = accounts();
-  const cur = curYm();
-  const out = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const ym = addMonths(cur, -i);
-    const end = i === 0 ? today() : `${ym}-${pad(daysInMonth(ym))}`;
-    out.push(accs.reduce((s, a) => s + balance(a, end), 0));
-  }
-  return out;
-}

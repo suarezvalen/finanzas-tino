@@ -6,6 +6,8 @@ import { sheetHead, upcomingItem, empty } from '../components.js';
 import { daysUntil } from '../dates.js';
 import { upcomingItems, alertCount } from '../logic/recurring.js';
 import { openCard } from './cards.js';
+import { openInvestment } from './investments.js';
+import { openDebt } from './debts.js';
 import { openTx } from './tx.js';
 import { openRecurringEdit, openRecurring } from './recurring.js';
 
@@ -13,6 +15,8 @@ import { openRecurringEdit, openRecurring } from './recurring.js';
 export function handleUpcoming(key) {
   const [kind, id, ym] = key.split('|');
   if (kind === 'card') return openCard(id);
+  if (kind === 'inv') return openInvestment(id);
+  if (kind === 'debt') return openDebt(id);
   const r = getRecurring(id);
   if (!r) return;
   const item = upcomingItems(60).find(i => i.kind === 'rec' && i.id === id && i.ym === ym);

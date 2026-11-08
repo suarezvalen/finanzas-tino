@@ -2,6 +2,9 @@
 import { txs, recurrings, accounts, getAccount, getCategory, upsertMany } from '../store.js';
 import { today, curYm, addMonths, addDays, dayIn } from '../dates.js';
 import { cardStatus } from './cards.js';
+import { activeInvestments, pfEnd, pfTotal, debtRemaining } from './wealth.js';
+import { debts } from '../store.js';
+import { INVEST_KINDS } from '../constants.js';
 
 /** Fecha en la que toca un pago recurrente en un mes dado (o null si ese mes no corresponde). */
 export function occurrence(r, ym) {
@@ -69,6 +72,21 @@ export function upcomingItems(horizon = 30) {
         auto: !!r.auto, type: r.type, icon: c?.icon || 'repeat', color: c?.color || '#94A3FF',
       });
     }
+  }
+  // Plazos fijos que vencen (o vencieron y falta cobrarlos).
+  for (const i of activeInvestments()) {
+    if (i.kind !== 'plazo_fijo') continue;
+    const end = pfEnd(i);
+    if (end > addDays(t, horizon)) continue;
+    items.push({ kind: 'inv', id: i.id, title: i.name, date: end, amount: pfTotal(i), overdue: false, matured: end <= t,
+      type: 'income', icon: INVEST_KINDS.plazo_fijo.icon, color: INVEST_KINDS.plazo_fijo.color });
+  }
+  // Deudas y préstamos con fecha de vencimiento.
+  for (const d of debts()) {
+    const rem = debtRemaining(d);
+    if (!rem || !d.dueDate || d.dueDate > end) continue;
+    items.push({ kind: 'debt', id: d.id, title: d.direction === 'owe' ? `Pagar a ${d.name}` : `Cobrar a ${d.name}`, date: d.dueDate,
+      amount: rem, overdue: d.dueDate < t, type: d.direction === 'owe' ? 'expense' : 'income', icon: 'handshake', color: '#FFB547' });
   }
   return items.sort((a, b) => a.date.localeCompare(b.date));
 }

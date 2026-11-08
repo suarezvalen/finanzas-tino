@@ -346,3 +346,45 @@ h1, h2, h3 { font-weight: 600; }
 .tx-sheet .keypad button { height: 42px; }
 .tx-sheet .save { margin-top: 8px; height: 50px; }
 .tx-sheet .banner { margin-top: 8px; padding: 6px 10px; }
+
+/* ---------- Etapa 3 ---------- */
+.ring { transform: rotate(-90deg); flex-shrink: 0; display: block; }
+.warn-c { color: var(--warn); }
+.stack { display: flex; height: 10px; border-radius: 9px; overflow: hidden; gap: 3px; margin: 14px 0 12px; }
+.stack i { display: block; height: 100%; }
+.inv-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; font-size: 12.5px; }
+.inv-legend div { display: flex; align-items: center; gap: 8px; color: var(--muted); min-width: 0; }
+.inv-legend div b { margin-left: auto; color: var(--text); font-weight: 500; }
+.inv-legend i { width: 8px; height: 8px; border-radius: 3px; flex-shrink: 0; }
+.actions3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.actions3 .btn { flex-direction: column; height: 70px; gap: 6px; font-size: 12.5px; font-weight: 500; }
+.actions3 .btn svg { color: var(--accent); }
+.seg.vertical { grid-auto-flow: row; }
+.seg.vertical button { text-align: left; padding: 11px 12px; }
+.seg button:disabled, .chip:disabled { opacity: .35; }
+.goal-card { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 14px; margin-bottom: 10px; }
+.goal-card .info small { white-space: normal; }
+.goal-card .plan { margin-top: 4px; }
+.goal-card .plan b, .goal-hero .help b { color: var(--accent); font-weight: 600; }
+.goal-ring { position: relative; display: grid; place-items: center; flex-shrink: 0; }
+.goal-ring > span { position: absolute; display: grid; place-items: center; }
+.goal-ring > span svg { width: 22px; height: 22px; }
+.goal-hero { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.goal-hero .rows { width: 100%; text-align: left; }
+.goal-ring.big { margin: 6px 0 4px; }
+.goal-center { position: absolute; display: flex; flex-direction: column; align-items: center; }
+.goal-center b { font-family: var(--display); font-size: 28px; font-weight: 700; }
+.goal-center small { font-size: 12px; color: var(--muted); }
+.grid.wealth .tile.wt { padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.grid.wealth .tile.wt small { font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.grid.wealth .tile.wt b { font-family: var(--display); font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.grid.wealth .tile.wt span { font-size: 12px; color: var(--muted); }
+.grid.wealth .tile.wt span.pos { color: var(--pos); }
+.grid.wealth .tile.wt span.neg { color: var(--neg); }
+.grid.wealth.one { grid-template-columns: 1fr; }
+.grid.wealth .goal-tile { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.grid.wealth .goal-tile > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.grid.wealth .tile.wt:last-child:nth-child(odd):not(:first-child) { grid-column: span 2; }
+.val .sub-val.pos { color: var(--pos); }
+.val .sub-val.neg { color: var(--neg); }
+.grid.wealth .tile.wt.goal-tile { flex-direction: row; }

@@ -1,8 +1,9 @@
 // Base de datos local (IndexedDB). Todo queda guardado en el dispositivo.
 const DB_NAME = 'finanzas-tino';
-// v2 (etapa 2): agrega 'recurring'. Las versiones solo agregan almacenes, nunca borran datos.
-const VERSION = 2;
-export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring'];
+// Las versiones solo agregan almacenes, nunca borran datos.
+// v2 (etapa 2): 'recurring'. v3 (etapa 3): 'investments', 'goals', 'debts'.
+const VERSION = 3;
+export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring', 'investments', 'goals', 'debts'];
 
 let dbPromise;
 function open() {

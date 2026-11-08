@@ -6,6 +6,8 @@ import { icon } from '../icons.js';
 import { openSheet, toast, esc, fmtMoney, money, ensureVisible, mark } from '../ui.js';
 import { catGrid, accChips } from '../components.js';
 import { today, shortDate, addMonthsToDate } from '../dates.js';
+import { openInvestment } from './investments.js';
+import { openDebt } from './debts.js';
 
 const TYPES = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia' };
 const SAVE_LABEL = { expense: 'Guardar gasto', income: 'Guardar ingreso', transfer: 'Guardar transferencia' };
@@ -20,6 +22,10 @@ const MAX_DIGITS = 11;
 export function openTx(id, preset = null) {
   const ex = id ? state.transactions.find(t => t.id === id && !t.deleted) : null;
   if (id && !ex) return;
+  // Plata hacia/desde una inversión o un préstamo: se maneja desde su detalle.
+  if (ex && (ex.type === 'in' || ex.type === 'out')) {
+    return ex.link?.kind === 'investment' ? openInvestment(ex.link.id) : openDebt(ex.link?.id);
+  }
   if (!ex && !accounts().length) {
     toast('Primero creá una cuenta en Más → Cuentas', { icon: 'info' });
     return;
