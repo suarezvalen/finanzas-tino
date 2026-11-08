@@ -6,11 +6,12 @@ import { txItem, accIcon, monthSwitcher, empty, linkInfo } from '../components.j
 import { curYm, addMonths, monthTitle, dayLabel } from '../dates.js';
 import { openTx } from '../sheets/tx.js';
 
-const F = { ym: curYm(), type: 'all', accountId: null, categoryId: null, q: '' };
+// from/to: rango de fechas (viene de Reportes); si está, reemplaza al mes.
+const F = { ym: curYm(), type: 'all', accountId: null, categoryId: null, q: '', from: null, to: null, rangeLabel: '' };
 const TYPES = [['all', 'Todos', 'layers'], ['expense', 'Gastos', 'arrow-up-right'], ['income', 'Ingresos', 'arrow-down-left'], ['transfer', 'Otros movimientos', 'arrow-left-right']];
 
 export function renderMovs(el, params) {
-  if (params) Object.assign(F, { ym: curYm(), type: 'all', accountId: null, categoryId: null, q: '' }, params);
+  if (params) Object.assign(F, { ym: curYm(), type: 'all', accountId: null, categoryId: null, q: '', from: null, to: null, rangeLabel: '' }, params);
   const accs = accounts();
 
   el.innerHTML = `
@@ -39,6 +40,7 @@ export function renderMovs(el, params) {
     const d = b.dataset;
     if (d.tx) return openTx(d.tx);
     if (d.m) { F.ym = addMonths(F.ym, Number(d.m)); return renderList(el); }
+    if ('rangeclear' in d) { F.ym = F.to.slice(0, 7); F.from = F.to = null; return renderList(el); }
     if (d.type) { F.type = d.type; mark(el.querySelector('#ftype'), b); return renderList(el); }
     if (d.accf !== undefined) { F.accountId = d.accf || null; mark(el.querySelector('#facc'), b); return renderList(el); }
     if ('catclear' in d) { F.categoryId = null; return renderList(el); }
@@ -50,7 +52,9 @@ export function renderMovs(el, params) {
 
 function filtered() {
   const needle = normalize(F.q.trim());
-  let list = needle ? txs() : txs().filter(t => t.date.startsWith(F.ym));
+  let list = needle ? txs()
+    : F.from ? txs().filter(t => t.date >= F.from && t.date <= F.to)
+    : txs().filter(t => t.date.startsWith(F.ym));
   if (F.type === 'transfer') list = list.filter(t => ['transfer', 'in', 'out'].includes(t.type));
   else if (F.type !== 'all') list = list.filter(t => t.type === F.type);
   if (F.accountId) list = list.filter(t => t.accountId === F.accountId || t.toAccountId === F.accountId);
@@ -66,11 +70,15 @@ function filtered() {
 
 function renderList(el) {
   const searching = !!F.q.trim();
-  el.querySelector('#msw').innerHTML = monthSwitcher(searching ? 'Buscando en todos los meses' : monthTitle(F.ym), searching);
+  el.querySelector('#msw').innerHTML = monthSwitcher(
+    searching ? 'Buscando en todos los meses' : F.from ? F.rangeLabel : monthTitle(F.ym), searching || !!F.from);
 
   const cat = F.categoryId ? getCategory(F.categoryId) : null;
-  el.querySelector('#fcat').innerHTML = cat
-    ? `<div class="chips" style="margin-top:8px"><button class="chip on" data-catclear>${icon(cat.icon)}${esc(cat.name)} ${icon('x')}</button></div>` : '';
+  const chips = [
+    F.from && !searching ? `<button class="chip on" data-rangeclear>${icon('calendar-range')}${esc(F.rangeLabel)} ${icon('x')}</button>` : '',
+    cat ? `<button class="chip on" data-catclear>${icon(cat.icon)}${esc(cat.name)} ${icon('x')}</button>` : '',
+  ].join('');
+  el.querySelector('#fcat').innerHTML = chips ? `<div class="chips" style="margin-top:8px">${chips}</div>` : '';
 
   const list = filtered();
   let inc = 0, out = 0;

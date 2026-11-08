@@ -5,11 +5,14 @@ import * as db from './db.js';
 import { curYm, today } from './dates.js';
 
 const DEFAULT_SETTINGS = { id: 'settings', name: '', budget: 0, hideAmounts: false, onboarded: false, lastAccount: {} };
+// Inflación mensual (% IPC) por mes 'AAAA-MM'. manual: meses cargados a mano.
+const DEFAULT_INFLATION = { id: 'inflation', values: {}, manual: {}, fetchedAt: null };
 export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts'];
 
 export const state = {
   accounts: [], categories: [], transactions: [], recurring: [], investments: [], goals: [], debts: [],
   settings: { ...DEFAULT_SETTINGS },
+  inflation: { ...DEFAULT_INFLATION },
 };
 
 const listeners = new Set();
@@ -25,6 +28,7 @@ export async function load() {
   const byStore = Object.fromEntries(db.STORES.map((s, i) => [s, all[i]]));
   for (const k of DATA_KINDS) state[k] = byStore[k] || [];
   state.settings = { ...DEFAULT_SETTINGS, ...byStore.meta.find(m => m.id === 'settings') };
+  state.inflation = { ...DEFAULT_INFLATION, ...byStore.meta.find(m => m.id === 'inflation') };
 }
 
 function build(kind, obj) {
@@ -57,6 +61,12 @@ export async function saveSettings(patch) {
   emit();
 }
 
+export async function saveInflation(patch) {
+  state.inflation = { ...state.inflation, ...patch, id: 'inflation', updatedAt: now() };
+  await db.putMany('meta', [state.inflation]);
+  emit();
+}
+
 /** Primera configuración: crea cuentas, categorías y ajustes de una vez. */
 export async function setup({ accounts, categories, settings }) {
   const accs = accounts.map(a => build('accounts', a));
@@ -72,6 +82,7 @@ export async function replaceAll(data) {
   await db.clearAll();
   for (const k of DATA_KINDS) await db.putMany(k, data[k] || []);
   await db.putMany('meta', [{ ...DEFAULT_SETTINGS, ...data.settings, id: 'settings' }]);
+  if (data.inflation) await db.putMany('meta', [{ ...DEFAULT_INFLATION, ...data.inflation, id: 'inflation' }]);
   await load();
   emit();
 }

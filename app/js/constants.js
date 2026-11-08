@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 export const INVEST_KINDS = {
   plazo_fijo: { label: 'Plazo fijo', icon: 'lock', color: '#00E5FF' },

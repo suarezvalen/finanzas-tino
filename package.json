@@ -7,9 +7,11 @@
   "scripts": {
     "dev": "node tools/serve.mjs",
     "icons": "node tools/build-icons.mjs",
-    "app-icons": "node tools/make-app-icons.mjs"
+    "app-icons": "node tools/make-app-icons.mjs",
+    "vendor": "node tools/vendor.mjs"
   },
   "devDependencies": {
+    "jspdf": "2.5.2",
     "lucide-static": "0.460.0"
   }
 }

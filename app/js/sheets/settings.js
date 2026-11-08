@@ -75,22 +75,23 @@ export function openSettings({ focus } = {}) {
 }
 
 async function exportBackup() {
-  const { accounts, categories, transactions, recurring, investments, goals, debts, settings } = state;
+  const { accounts, categories, transactions, recurring, investments, goals, debts, settings, inflation } = state;
   const data = {
     app: 'finanzas-tino', format: 3, exportedAt: new Date().toISOString(),
-    accounts, categories, transactions, recurring, investments, goals, debts, settings,
+    accounts, categories, transactions, recurring, investments, goals, debts, settings, inflation,
   };
   await saveFile(`finanzas-tino-copia-${today()}.json`, JSON.stringify(data, null, 1), 'application/json');
 }
 
-async function exportCsv() {
+/** Exporta movimientos a CSV (Excel). Por defecto, todos. */
+export async function exportCsv(list = txs(), name = `finanzas-tino-movimientos-${today()}.csv`) {
   const TYPE = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia', in: 'Entrada', out: 'Salida' };
   const cell = v => {
     const s = String(v ?? '');
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const rows = [['Fecha', 'Tipo', 'Monto', 'Categoría', 'Cuenta', 'Cuenta destino', 'Nota', 'Cuota']];
-  for (const t of sortedTxs(txs()).reverse()) {
+  for (const t of sortedTxs(list).reverse()) {
     rows.push([
       t.date, TYPE[t.type], t.type === 'expense' || t.type === 'out' ? -t.amount : t.amount,
       getCategory(t.categoryId)?.name || (t.link ? linkInfo(t).label : ''), getAccount(t.accountId)?.name || '',
@@ -99,7 +100,7 @@ async function exportCsv() {
     ]);
   }
   const csv = '﻿' + rows.map(r => r.map(cell).join(';')).join('\r\n');
-  await saveFile(`finanzas-tino-movimientos-${today()}.csv`, csv, 'text/csv');
+  await saveFile(name, csv, 'text/csv');
 }
 
 async function importBackup(file, ctl) {

@@ -388,3 +388,20 @@ h1, h2, h3 { font-weight: 600; }
 .val .sub-val.pos { color: var(--pos); }
 .val .sub-val.neg { color: var(--neg); }
 .grid.wealth .tile.wt.goal-tile { flex-direction: row; }
+
+/* ---------- Etapa 4 ---------- */
+.period-seg button { font-size: 12px; padding: 9px 2px; }
+.range-row { align-items: center; gap: 8px; margin-bottom: 12px; }
+.range-row .date-pill { flex: 1; justify-content: center; height: 44px; font-size: 13.5px; }
+.range-sep { color: var(--muted); font-size: 13px; }
+.switch-row.compact { padding: 10px 12px; margin-bottom: 12px; }
+.switch-row.compact .info b { font-size: 14px; }
+.infl-card .info small { white-space: normal; line-height: 1.4; margin-top: 2px; }
+.list.flat { background: none; border: 0; border-radius: 0; margin: 6px -4px 0; }
+.list.flat .item { padding: 10px 4px; }
+.val.muted { color: var(--muted); font-weight: 500; font-size: 13px; }
+.net-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 8px; }
+.net-row small { font-size: 12px; }
+.bars.dense .pair i { width: 7px; }
+.bars.dense .pair { gap: 2px; }
+.bars.dense .m span { font-size: 10px; }

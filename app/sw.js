@@ -1,7 +1,7 @@
 // Service worker: permite abrir la app sin internet.
 // Con conexión siempre trae la última versión; sin conexión usa la copia guardada.
 // Al publicar cambios, subí VERSION para limpiar copias viejas.
-const VERSION = 'v1.2.0';
+const VERSION = 'v1.3.0';
 const CACHE = `ft-${VERSION}`;
 const FONTS = 'ft-fonts';
 
@@ -15,6 +15,8 @@ const ASSETS = [
   'js/sheets/amount.js', 'js/sheets/cards.js', 'js/sheets/budgets.js', 'js/sheets/recurring.js', 'js/sheets/upcoming.js',
   'js/logic/cards.js', 'js/logic/recurring.js', 'js/logic/wealth.js',
   'js/sheets/move.js', 'js/sheets/investments.js', 'js/sheets/goals.js', 'js/sheets/debts.js',
+  'js/logic/report.js', 'js/logic/inflation.js', 'js/logic/pdf.js', 'js/sheets/inflation.js',
+  'vendor/jspdf.umd.min.js',
 ];
 
 self.addEventListener('install', e => {
