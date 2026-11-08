@@ -1,7 +1,8 @@
 // Base de datos local (IndexedDB). Todo queda guardado en el dispositivo.
 const DB_NAME = 'finanzas-tino';
-const VERSION = 1;
-export const STORES = ['accounts', 'categories', 'transactions', 'meta'];
+// v2 (etapa 2): agrega 'recurring'. Las versiones solo agregan almacenes, nunca borran datos.
+const VERSION = 2;
+export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring'];
 
 let dbPromise;
 function open() {
@@ -11,7 +12,11 @@ function open() {
       const db = req.result;
       for (const s of STORES) if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      // Si se abre una versión más nueva de la app, esta conexión se cierra para no bloquearla.
+      req.result.onversionchange = () => { req.result.close(); location.reload(); };
+      resolve(req.result);
+    };
     req.onerror = () => reject(req.error);
   });
   return dbPromise;

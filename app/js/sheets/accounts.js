@@ -40,10 +40,14 @@ export function openAccounts() {
   });
 }
 
-export function openAccountEdit(id) {
+export function openAccountEdit(id, preset = {}) {
   const ex = id ? getAccount(id) : null;
   const cur = ex ? balance(ex) : 0;
-  const F = { name: ex?.name || '', type: ex?.type || 'bank', bal: '' };
+  const F = {
+    name: ex?.name || '', type: ex?.type || preset.type || 'bank', bal: '',
+    closingDay: ex?.closingDay ? String(ex.closingDay) : '', dueDay: ex?.dueDay ? String(ex.dueDay) : '',
+    limit: ex?.limit ? fmtNum(ex.limit) : '',
+  };
   if (ex) {
     const shown = ex.type === 'credit' ? Math.max(-cur, 0) : Math.max(cur, 0);
     F.bal = shown ? fmtNum(shown) : '';
@@ -62,6 +66,13 @@ export function openAccountEdit(id) {
         <div class="field"><label for="ab">${credit ? 'Deuda actual de la tarjeta' : 'Saldo actual'}</label>
           <input class="input" id="ab" inputmode="numeric" autocomplete="off" placeholder="$ 0" value="${F.bal}">
           <p class="help">${credit ? 'Lo que debés hoy en la tarjeta.' : 'Lo que tenés hoy en esta cuenta.'} Si más adelante no coincide con la realidad, corregilo acá y la app ajusta el saldo.</p></div>
+        ${credit ? `
+        <div class="row">
+          <div class="field" style="flex:1"><label for="acd">Día de cierre</label><input class="input" id="acd" inputmode="numeric" maxlength="2" placeholder="Ej: 25" value="${F.closingDay}"></div>
+          <div class="field" style="flex:1"><label for="add">Día de vencimiento</label><input class="input" id="add" inputmode="numeric" maxlength="2" placeholder="Ej: 5" value="${F.dueDay}"></div>
+        </div>
+        <p class="help" style="margin:-8px 2px 16px">Los encontrás en el resumen de la tarjeta. Con estos días la app arma tus resúmenes y te avisa cuándo pagar.</p>
+        <div class="field"><label for="alim">Límite de compra (opcional)</label><input class="input" id="alim" inputmode="numeric" autocomplete="off" placeholder="$ 0" value="${F.limit}"></div>` : ''}
         <button class="btn primary" data-save>${ex ? 'Guardar cambios' : 'Crear cuenta'}</button>
         ${ex ? `<div class="row" style="margin-top:10px">
           <button class="btn" data-archive>${icon(ex.archived ? 'archive-restore' : 'archive')}${ex.archived ? 'Reactivar' : 'Archivar'}</button>
@@ -69,6 +80,15 @@ export function openAccountEdit(id) {
 
       el.querySelector('#an').oninput = e => { F.name = e.target.value; };
       amountInput(el.querySelector('#ab'), v => { F.bal = v; });
+      if (credit) {
+        const day = (sel, key) => el.querySelector(sel).addEventListener('input', e => {
+          e.target.value = e.target.value.replace(/\D/g, '').slice(0, 2);
+          F[key] = e.target.value;
+        });
+        day('#acd', 'closingDay');
+        day('#add', 'dueDay');
+        amountInput(el.querySelector('#alim'), v => { F.limit = v; });
+      }
 
       el.onclick = async e => {
         const b = e.target.closest('button');
@@ -81,6 +101,14 @@ export function openAccountEdit(id) {
           const desired = F.type === 'credit' ? -n : n;
           const moves = ex ? cur - (ex.initialBalance || 0) : 0;
           const rec = { name: F.name.trim() || ACCOUNT_TYPES[F.type].label, type: F.type, initialBalance: desired - moves };
+          if (F.type === 'credit') {
+            const cd = Number(F.closingDay) || 0, dd = Number(F.dueDay) || 0;
+            if ((cd || dd) && !(cd >= 1 && cd <= 31 && dd >= 1 && dd <= 31)) {
+              toast('Revisá los días: tienen que ser del 1 al 31', { icon: 'triangle-alert' });
+              return;
+            }
+            Object.assign(rec, { closingDay: cd, dueDay: dd, limit: parseAmount(F.limit) });
+          }
           if (ex) rec.id = ex.id; else rec.order = Date.now();
           await upsert('accounts', rec);
           toast(ex ? 'Cuenta actualizada' : 'Cuenta creada');

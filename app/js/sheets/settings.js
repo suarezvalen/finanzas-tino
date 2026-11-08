@@ -20,7 +20,7 @@ export function openSettings({ focus } = {}) {
         <div class="field"><label for="sn">Tu nombre</label><input class="input" id="sn" maxlength="30" autocomplete="off" value="${esc(s.name)}"></div>
         <div class="field"><label for="sb">Presupuesto mensual</label>
           <input class="input" id="sb" inputmode="numeric" autocomplete="off" placeholder="$ 0 (sin presupuesto)" value="${s.budget ? fmtNum(s.budget) : ''}">
-          <p class="help">Lo máximo que querés gastar por mes. La pantalla de inicio te muestra cuánto te queda y cuánto podés gastar por día.</p></div>
+          <p class="help">Lo máximo que querés gastar por mes. Los límites por categoría están en Más → Presupuestos.</p></div>
         <button class="btn primary" data-save>Guardar</button>
 
         <div class="section-h"><h3>Copias de seguridad</h3></div>
@@ -74,8 +74,8 @@ export function openSettings({ focus } = {}) {
 }
 
 async function exportBackup() {
-  const { accounts, categories, transactions, settings } = state;
-  const data = { app: 'finanzas-tino', format: 1, exportedAt: new Date().toISOString(), accounts, categories, transactions, settings };
+  const { accounts, categories, transactions, recurring, settings } = state;
+  const data = { app: 'finanzas-tino', format: 2, exportedAt: new Date().toISOString(), accounts, categories, transactions, recurring, settings };
   await saveFile(`finanzas-tino-copia-${today()}.json`, JSON.stringify(data, null, 1), 'application/json');
 }
 
@@ -85,12 +85,13 @@ async function exportCsv() {
     const s = String(v ?? '');
     return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const rows = [['Fecha', 'Tipo', 'Monto', 'Categoría', 'Cuenta', 'Cuenta destino', 'Nota']];
+  const rows = [['Fecha', 'Tipo', 'Monto', 'Categoría', 'Cuenta', 'Cuenta destino', 'Nota', 'Cuota']];
   for (const t of sortedTxs(txs()).reverse()) {
     rows.push([
       t.date, TYPE[t.type], t.type === 'expense' ? -t.amount : t.amount,
       getCategory(t.categoryId)?.name || '', getAccount(t.accountId)?.name || '',
       getAccount(t.toAccountId)?.name || '', t.note || '',
+      t.installment ? `${t.installment.n}/${t.installment.total}` : '',
     ]);
   }
   const csv = '﻿' + rows.map(r => r.map(cell).join(';')).join('\r\n');

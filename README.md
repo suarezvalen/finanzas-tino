@@ -8,7 +8,8 @@ App personal de finanzas para iPhone y PC. Es una PWA: una página web que se in
   - `js/store.js`: los datos y los cálculos (saldos, totales del mes).
   - `js/db.js`: la base de datos local del dispositivo (IndexedDB).
   - `js/views/`: las 4 pantallas (Inicio, Movimientos, Reportes, Más).
-  - `js/sheets/`: los paneles (cargar movimiento, cuentas, categorías, ajustes, bienvenida).
+  - `js/sheets/`: los paneles (cargar movimiento, cuentas, tarjetas, presupuestos, pagos recurrentes, vencimientos, categorías, ajustes, bienvenida).
+  - `js/logic/`: cálculos de resúmenes de tarjeta y de pagos recurrentes.
   - `sw.js`: permite usarla sin conexión.
 - `tools/`: scripts de desarrollo (servidor local, generar íconos).
 - `muestra/`: la primera muestra de diseño.
@@ -34,7 +35,7 @@ Los datos quedan guardados en cada dispositivo. Hasta la etapa 5, que agrega la 
 ## Etapas
 
 1. ✅ Base: cuentas, categorías, gastos, ingresos, transferencias, inicio, movimientos, reportes, copias.
-2. Tarjetas y cuotas, presupuestos por categoría, pagos recurrentes, recordatorios.
+2. ✅ Tarjetas (cierre, vencimiento, resúmenes, pagos) y cuotas, presupuestos por categoría con avisos, pagos recurrentes (manuales o automáticos), próximos vencimientos y número en el ícono.
 3. Inversiones, metas de ahorro, deudas y préstamos.
 4. Reportes avanzados (períodos, ajuste por inflación, exportar PDF).
 5. Sincronización con la PC y bloqueo con PIN.

@@ -110,6 +110,7 @@ export function openSheet({ render, full = false, live = false, cls = '', onClos
 }
 
 export const refreshSheets = () => stack.forEach(s => s.live && s.refresh());
+export const closeAll = () => [...stack].reverse().forEach(s => s.close());
 export const topSheet = () => stack[stack.length - 1];
 
 document.addEventListener('keydown', e => {

@@ -5,8 +5,9 @@ import * as db from './db.js';
 import { curYm, today, addMonths, daysInMonth, pad } from './dates.js';
 
 const DEFAULT_SETTINGS = { id: 'settings', name: '', budget: 0, hideAmounts: false, onboarded: false, lastAccount: {} };
+export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring'];
 
-export const state = { accounts: [], categories: [], transactions: [], settings: { ...DEFAULT_SETTINGS } };
+export const state = { accounts: [], categories: [], transactions: [], recurring: [], settings: { ...DEFAULT_SETTINGS } };
 
 const listeners = new Set();
 export const subscribe = fn => listeners.add(fn);
@@ -17,9 +18,10 @@ export const uid = () =>
 const now = () => new Date().toISOString();
 
 export async function load() {
-  const [accounts, categories, transactions, meta] = await Promise.all(db.STORES.map(db.getAll));
-  Object.assign(state, { accounts, categories, transactions });
-  state.settings = { ...DEFAULT_SETTINGS, ...meta.find(m => m.id === 'settings') };
+  const all = await Promise.all(db.STORES.map(db.getAll));
+  const byStore = Object.fromEntries(db.STORES.map((s, i) => [s, all[i]]));
+  for (const k of DATA_KINDS) state[k] = byStore[k] || [];
+  state.settings = { ...DEFAULT_SETTINGS, ...byStore.meta.find(m => m.id === 'settings') };
 }
 
 function build(kind, obj) {
@@ -34,11 +36,15 @@ function put(kind, rec) {
 }
 
 export async function upsert(kind, obj) {
-  const rec = build(kind, obj);
-  put(kind, rec);
-  await db.putMany(kind, [rec]);
-  emit();
+  const [rec] = await upsertMany(kind, [obj]);
   return rec;
+}
+export async function upsertMany(kind, objs) {
+  const recs = [];
+  for (const o of objs) { const r = build(kind, o); put(kind, r); recs.push(r); }
+  await db.putMany(kind, recs);
+  emit();
+  return recs;
 }
 export const remove = (kind, id) => upsert(kind, { id, deleted: true });
 
@@ -61,11 +67,8 @@ export async function setup({ accounts, categories, settings }) {
 
 export async function replaceAll(data) {
   await db.clearAll();
-  const settings = { ...DEFAULT_SETTINGS, ...data.settings, id: 'settings' };
-  await db.putMany('accounts', data.accounts);
-  await db.putMany('categories', data.categories);
-  await db.putMany('transactions', data.transactions);
-  await db.putMany('meta', [settings]);
+  for (const k of DATA_KINDS) await db.putMany(k, data[k] || []);
+  await db.putMany('meta', [{ ...DEFAULT_SETTINGS, ...data.settings, id: 'settings' }]);
   await load();
   emit();
 }
@@ -79,8 +82,10 @@ export const accounts = (includeArchived = false) =>
   live('accounts').filter(a => includeArchived || !a.archived).sort(byOrder);
 export const categories = kind => live('categories').filter(c => c.kind === kind).sort(byOrder);
 export const txs = () => live('transactions');
+export const recurrings = () => live('recurring').sort((a, b) => a.day - b.day || a.name.localeCompare(b.name));
 export const getAccount = id => state.accounts.find(a => a.id === id);
 export const getCategory = id => state.categories.find(c => c.id === id);
+export const getRecurring = id => state.recurring.find(r => r.id === id);
 
 /** Cuánto cambia el saldo de una cuenta por un movimiento. */
 export function txEffect(t, accId) {
@@ -89,9 +94,14 @@ export function txEffect(t, accId) {
   if (t.type === 'transfer' && t.toAccountId === accId) v += t.amount;
   return v;
 }
-export function balance(acc, upTo) {
+
+/** Fecha desde la que un movimiento afecta el saldo: las cuotas cuentan como deuda desde la compra. */
+const effectiveDate = (t, acc) => (acc.type === 'credit' && t.installment?.purchaseDate) || t.date;
+
+/** Saldo a una fecha (por defecto hoy). Lo cargado con fecha futura todavía no cuenta. */
+export function balance(acc, upTo = today()) {
   let total = acc.initialBalance || 0;
-  for (const t of txs()) if (!upTo || t.date <= upTo) total += txEffect(t, acc.id);
+  for (const t of txs()) if (effectiveDate(t, acc) <= upTo) total += txEffect(t, acc.id);
   return total;
 }
 
@@ -104,6 +114,9 @@ export function monthStats(ym) {
   }
   return { list, income, expense };
 }
+
+export const categorySpent = (catId, ym = curYm()) =>
+  txs().filter(t => t.type === 'expense' && t.categoryId === catId && t.date.startsWith(ym)).reduce((s, t) => s + t.amount, 0);
 
 export const sortedTxs = (list = txs()) =>
   [...list].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));

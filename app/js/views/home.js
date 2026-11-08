@@ -1,13 +1,16 @@
 // Pantalla de inicio.
-import { state, accounts, balance, monthStats, sortedTxs, netWorthSeries, saveSettings } from '../store.js';
+import { state, accounts, balance, monthStats, sortedTxs, txs, netWorthSeries, saveSettings, getAccount } from '../store.js';
 import { icon } from '../icons.js';
 import { money, esc } from '../ui.js';
-import { txItem, accIcon, empty } from '../components.js';
+import { txItem, accIcon, empty, upcomingItem } from '../components.js';
 import { today, curYm, daysInMonth, cap, monthName } from '../dates.js';
 import { go } from '../router.js';
 import { openTx } from '../sheets/tx.js';
-import { openSettings } from '../sheets/settings.js';
 import { openAccounts, openAccountEdit } from '../sheets/accounts.js';
+import { openBudgets, budgetAlerts } from '../sheets/budgets.js';
+import { openCard } from '../sheets/cards.js';
+import { openUpcoming, handleUpcoming } from '../sheets/upcoming.js';
+import { upcomingItems, alertCount } from '../logic/recurring.js';
 
 function greeting() {
   const h = new Date().getHours();
@@ -27,9 +30,16 @@ function sparkline(vals) {
 
 function budgetCard(st, ym) {
   const budget = state.settings.budget;
+  const alerts = budgetAlerts();
+  const alertChips = alerts.length
+    ? `<div class="budget-cats">${alerts.slice(0, 3).map(a =>
+      `<span class="mini-tag ${a.p > 1 ? 'over' : ''}">${esc(a.c.name)} ${Math.round(a.p * 100)}%</span>`).join('')}</div>` : '';
   if (!(budget > 0)) {
+    if (alerts.length) {
+      return `<button class="card" data-act="budget"><div class="label">Presupuestos al límite</div>${alertChips}</button>`;
+    }
     return `<button class="card card-cta" data-act="budget"><span class="cta-ic">${icon('gauge')}</span>
-      <span class="info"><b>Definí tu presupuesto mensual</b><small>Así sabés cuánto podés gastar por día</small></span>${icon('chevron-right', 'chev')}</button>`;
+      <span class="info"><b>Definí tu presupuesto</b><small>Total del mes o por categoría, y sabés cuánto podés gastar por día</small></span>${icon('chevron-right', 'chev')}</button>`;
   }
   const used = st.expense / budget;
   const left = budget - st.expense;
@@ -39,17 +49,20 @@ function budgetCard(st, ym) {
     <div class="progress ${used > 0.9 ? 'warn' : ''}"><i style="width:${Math.min(used * 100, 100)}%"></i></div>
     <div class="budget-foot">${left >= 0
       ? `<span>Te quedan <b>${money(left)}</b></span><span>≈ <b>${money(left / daysLeft)}</b> por día</span>`
-      : `<span class="neg">Te pasaste por <b class="neg">${money(-left)}</b></span>`}</div></button>`;
+      : `<span class="neg">Te pasaste por <b class="neg">${money(-left)}</b></span>`}</div>${alertChips}</button>`;
 }
 
 export function renderHome(el) {
   const s = state.settings;
   const ym = curYm();
+  const t = today();
   const accs = accounts();
-  const avail = accs.filter(a => a.type !== 'credit').reduce((t, a) => t + balance(a), 0);
-  const net = accs.reduce((t, a) => t + balance(a), 0);
+  const avail = accs.filter(a => a.type !== 'credit').reduce((x, a) => x + balance(a), 0);
+  const net = accs.reduce((x, a) => x + balance(a), 0);
   const st = monthStats(ym);
-  const recent = sortedTxs().slice(0, 6);
+  const recent = sortedTxs(txs().filter(x => x.date <= t)).slice(0, 6);
+  const upcoming = upcomingItems(15);
+  const alerts = alertCount();
   const dateStr = cap(new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }));
   const initial = (s.name || '').trim().charAt(0).toUpperCase() || '$';
 
@@ -58,6 +71,7 @@ export function renderHome(el) {
       <div class="avatar">${esc(initial)}</div>
       <div class="hi"><small>${dateStr}</small><strong>${greeting()}${s.name ? ', ' + esc(s.name) : ''}</strong></div>
       <button class="icon-btn" data-act="hide" aria-label="${s.hideAmounts ? 'Mostrar' : 'Ocultar'} montos">${icon(s.hideAmounts ? 'eye-off' : 'eye')}</button>
+      <button class="icon-btn" data-act="upcoming" aria-label="Próximos vencimientos">${icon('bell')}${alerts ? `<span class="dot-count">${alerts}</span>` : ''}</button>
     </header>
 
     <section class="card hero">
@@ -71,6 +85,9 @@ export function renderHome(el) {
     </section>
 
     ${budgetCard(st, ym)}
+
+    ${upcoming.length ? `<div class="section-h"><h3>Próximos vencimientos</h3><button data-act="upcoming">Ver todos</button></div>
+      <div class="list">${upcoming.slice(0, 4).map(upcomingItem).join('')}</div>` : ''}
 
     <div class="section-h"><h3>Cuentas</h3><button data-act="accounts">Administrar</button></div>
     <div class="accounts">
@@ -92,10 +109,12 @@ export function renderHome(el) {
     if (!b) return;
     const d = b.dataset;
     if (d.tx) return openTx(d.tx);
-    if (d.acc) return go('movs', { accountId: d.acc });
+    if (d.up) return handleUpcoming(d.up);
+    if (d.acc) return getAccount(d.acc)?.type === 'credit' ? openCard(d.acc) : go('movs', { accountId: d.acc });
     switch (d.act) {
       case 'hide': return saveSettings({ hideAmounts: !s.hideAmounts });
-      case 'budget': return openSettings({ focus: 'budget' });
+      case 'budget': return openBudgets();
+      case 'upcoming': return openUpcoming();
       case 'accounts': return openAccounts();
       case 'new-account': return openAccountEdit();
       case 'all': return go('movs', {});

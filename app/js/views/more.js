@@ -1,16 +1,17 @@
-// Pantalla "Más": acceso a cuentas, categorías, ajustes y lo que viene.
-import { accounts, categories } from '../store.js';
+// Pantalla "Más": acceso a todas las secciones.
+import { accounts, categories, recurrings } from '../store.js';
 import { icon } from '../icons.js';
 import { toast } from '../ui.js';
 import { openAccounts } from '../sheets/accounts.js';
 import { openCategories } from '../sheets/categories.js';
 import { openSettings } from '../sheets/settings.js';
+import { openCards } from '../sheets/cards.js';
+import { openBudgets } from '../sheets/budgets.js';
+import { openRecurring } from '../sheets/recurring.js';
+import { openUpcoming } from '../sheets/upcoming.js';
+import { upcomingItems } from '../logic/recurring.js';
 
 const SOON = [
-  ['credit-card', 'Tarjetas y cuotas', 'Cierres, vencimientos y cuotas', 2],
-  ['gauge', 'Presupuestos', 'Por categoría', 2],
-  ['repeat', 'Pagos recurrentes', 'Alquiler, servicios, suscripciones', 2],
-  ['bell-ring', 'Recordatorios', 'Vencimientos que se acercan', 2],
   ['trending-up', 'Inversiones', 'Plazo fijo, FCI, CEDEARs, cripto', 3],
   ['target', 'Metas de ahorro', 'Viajes, compras, fondo de emergencia', 3],
   ['hand-coins', 'Deudas y préstamos', 'Lo que debés y lo que te deben', 3],
@@ -19,10 +20,15 @@ const SOON = [
 ];
 
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 export function renderMore(el) {
   const nAcc = accounts().length;
+  const nCards = accounts().filter(a => a.type === 'credit').length;
   const nCat = categories('expense').length + categories('income').length;
+  const nRec = recurrings().filter(r => r.active !== false).length;
+  const nUp = upcomingItems(15).length;
+  const nBudgets = categories('expense').filter(c => c.budget > 0).length;
   const tile = (act, ic, title, sub) =>
     `<button class="tile" data-act="${act}"><div class="ic">${icon(ic)}</div><b>${title}</b><small>${sub}</small></button>`;
 
@@ -34,7 +40,11 @@ export function renderMore(el) {
         <ol><li>Abrí esta página en <b>Safari</b></li><li>Tocá ${icon('share')} <b>Compartir</b></li><li>Elegí ${icon('square-plus')} <b>Agregar a inicio</b></li></ol></div>
     </section>`}
     <div class="grid">
-      ${tile('accounts', 'wallet', 'Cuentas', `${nAcc} cuenta${nAcc === 1 ? '' : 's'} activa${nAcc === 1 ? '' : 's'}`)}
+      ${tile('cards', 'credit-card', 'Tarjetas y cuotas', nCards ? plural(nCards, 'tarjeta', 'tarjetas') : 'Resúmenes y cuotas')}
+      ${tile('budgets', 'gauge', 'Presupuestos', nBudgets ? plural(nBudgets, 'categoría con límite', 'categorías con límite') : 'Total y por categoría')}
+      ${tile('recurring', 'repeat', 'Pagos recurrentes', nRec ? plural(nRec, 'activo', 'activos') : 'Alquiler, servicios, sueldo')}
+      ${tile('upcoming', 'calendar-clock', 'Vencimientos', nUp ? `${nUp} en los próximos 15 días` : 'Nada por vencer')}
+      ${tile('accounts', 'wallet', 'Cuentas', plural(nAcc, 'cuenta activa', 'cuentas activas'))}
       ${tile('categories', 'tags', 'Categorías', `${nCat} categorías`)}
       ${tile('settings', 'settings', 'Ajustes', 'Nombre y presupuesto')}
       ${tile('backup', 'download', 'Copias y Excel', 'Exportar y restaurar')}
@@ -48,6 +58,10 @@ export function renderMore(el) {
     if (!b) return;
     if (b.dataset.soon) return toast(`${b.dataset.soon}: llega en la etapa ${b.dataset.stage}`, { icon: 'sparkles' });
     switch (b.dataset.act) {
+      case 'cards': return openCards();
+      case 'budgets': return openBudgets();
+      case 'recurring': return openRecurring();
+      case 'upcoming': return openUpcoming();
       case 'accounts': return openAccounts();
       case 'categories': return openCategories();
       case 'settings':

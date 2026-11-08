@@ -14,7 +14,7 @@ const UI_ICONS = [
   'trash-2', 'settings', 'download', 'upload', 'tags', 'circle-check', 'calendar', 'archive',
   'archive-restore', 'target', 'gauge', 'repeat', 'shield-check', 'file-spreadsheet', 'bell-ring',
   'cloud', 'share', 'square-plus', 'triangle-alert', 'info', 'layers', 'credit-card', 'hand-coins',
-  'trending-up', 'sparkles', 'chevron-down', 'wallet',
+  'trending-up', 'sparkles', 'chevron-down', 'wallet', 'pencil', 'bell', 'calendar-clock', 'skip-forward', 'pause', 'play',
 ];
 
 const names = [...new Set([...UI_ICONS, ...CATEGORY_ICONS, ...Object.values(ACCOUNT_TYPES).map(t => t.icon)])].sort();
