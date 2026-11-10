@@ -59,7 +59,8 @@ export function txItem(t) {
 /** Fila de "próximos vencimientos". */
 export function upcomingItem(i) {
   let when;
-  if (i.kind === 'inv') when = i.matured ? `<span class="acc-c">Venció el ${dayMonth(i.date)} · cobralo</span>` : `Plazo fijo · vence ${relDay(i.date)} · ${dayMonth(i.date)}`;
+  if (i.kind === 'plan') when = `Plan de compra · ${relDay(i.date) === 'hoy' ? 'te toca hoy' : relDay(i.date)} · ${dayMonth(i.date)}`;
+  else if (i.kind === 'inv') when = i.matured ? `<span class="acc-c">Venció el ${dayMonth(i.date)} · cobralo</span>` : `Plazo fijo · vence ${relDay(i.date)} · ${dayMonth(i.date)}`;
   else if (i.overdue) when = `<span class="neg">Venció ${relDay(i.date)} · ${dayMonth(i.date)}</span>`;
   else if (i.auto) when = `Se registra solo ${relDay(i.date)} · ${dayMonth(i.date)}`;
   else if (i.estimate) when = `Vence ${relDay(i.date)} · ${dayMonth(i.date)} · resumen en curso`;

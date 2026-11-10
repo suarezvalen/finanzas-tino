@@ -11,6 +11,15 @@ import {
 } from '../logic/wealth.js';
 import { openAmountSheet } from './amount.js';
 import { openMoveSheet } from './move.js';
+import { MARKETS, MARKET_TO_KIND, isLinked, holdingStats, quoteOf, marketCache } from '../logic/market.js';
+import { positionValue } from '../logic/market-core.js';
+import { fmtPrice } from '../logic/alerts-core.js';
+import { openPickAsset } from './pick-asset.js';
+import { openAsset, openTrade } from './asset.js';
+
+const MARKETABLE = ['acciones', 'cedears', 'bonos', 'cripto'];
+const parseUnits = s => Number(String(s).replace(/\./g, '').replace(',', '.')) || 0;
+const fmtUnits = n => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 8 }).format(n);
 
 const kindOf = i => INVEST_KINDS[i.kind] || INVEST_KINDS.otro;
 const pctText = p => `${p >= 0 ? '+' : '−'}${Math.abs(p * 100).toFixed(1).replace('.', ',')}%`;
@@ -18,6 +27,10 @@ const now = () => new Date().toISOString();
 
 function subLine(i) {
   if (i.closedAt) return `Finalizada el ${dayMonth(i.closedAt)}`;
+  if (isLinked(i)) {
+    const q = quoteOf(i.market, i.ticker);
+    return `${esc(i.ticker)} · ${fmtUnits(i.units)}${q ? ` · ${fmtPrice(q.price, q.ccy)}${q.pct != null ? ` <span class="${q.pct >= 0 ? 'pos' : 'neg'}">${q.pct >= 0 ? '+' : '−'}${Math.abs(q.pct).toFixed(1).replace('.', ',')}%</span>` : ''}` : ''}`;
+  }
   if (i.kind === 'plazo_fijo') {
     const end = pfEnd(i);
     return pfMatured(i) ? `<span class="acc-c">Venció el ${dayMonth(end)}: cobrá ${money(pfTotal(i))}</span>` : `${i.tna}% TNA · vence ${dayMonth(end)} (${relDay(end)})`;
@@ -56,7 +69,7 @@ export function openInvestments() {
           <div class="inv-legend">${kinds.map(([k, v]) => `<div><i style="background:${INVEST_KINDS[k].color}"></i>${INVEST_KINDS[k].label}<b>${Math.round((v / total) * 100)}%</b></div>`).join('')}</div>` : ''}
         </section>
         <div class="list">${stats.sort((a, b) => b.value - a.value).map(row).join('')}</div>
-        <p class="help" style="margin:10px 4px 0">El plazo fijo se calcula solo. Para el resto, tocá la inversión y actualizá el valor cada tanto.</p>`
+        <p class="help" style="margin:10px 4px 0">El plazo fijo se calcula solo, y lo que tiene ticker (acciones, CEDEARs, bonos, cripto) se actualiza con el precio del mercado. Para el resto, actualizá el valor cada tanto.</p>`
         : empty('trending-up', 'Todavía no cargaste inversiones', 'Sumá tus plazos fijos, fondos, acciones, CEDEARs, cripto o dólares para ver cuánto tenés y cuánto ganás.')}
         <button class="btn primary" data-new style="margin-top:14px">${icon('plus')}Nueva inversión</button>
         ${closed.length ? `<div class="section-h"><h3>Finalizadas</h3></div><div class="list">${closed.map(i => row({ i, ...investStats(i) })).join('')}</div>` : ''}`;
@@ -112,8 +125,20 @@ export function openInvestment(id) {
           </div>
           ${matured ? `<div class="row" style="margin-top:14px"><button class="btn primary" data-collect>${icon('arrow-up-from-line')}Cobrar</button><button class="btn" data-renew>${icon('refresh-cw')}Renovar</button></div>` : ''}
         </section>`;
+      } else if (isLinked(i)) {
+        const hs = holdingStats(i);
+        body = `<section class="card"><div class="rows" style="margin-top:0">
+            <div><span>Ticker</span><b>${esc(i.ticker)} · ${MARKETS[i.market]?.short || ''}</b></div>
+            <div><span>Cantidad</span><b>${fmtUnits(i.units)}</b></div>
+            <div><span>Precio actual</span><b>${hs.quote ? fmtPrice(hs.quote.price, hs.quote.ccy) : '—'}</b></div>
+            <div><span>Precio promedio</span><b>${hs.cost ? fmtPrice(hs.cost, hs.quote?.ccy) : '—'}</b></div>
+          </div></section>
+          <div class="actions3">
+          <button class="btn" data-buy>${icon('plus')}Comprar</button>
+          <button class="btn" data-sell>${icon('minus')}Vender</button>
+          <button class="btn" data-asset>${icon('chart-line')}Análisis</button></div>`;
       } else if (!i.closedAt) {
-        body = `<div class="actions3">
+        body = `${MARKETABLE.includes(i.kind) ? `<button class="card card-cta" data-edit><span class="cta-ic">${icon('chart-line')}</span><span class="info"><b>Conectala con el mercado</b><small>Poné el ticker y la cantidad, y el valor se actualiza solo</small></span>${icon('chevron-right', 'chev')}</button>` : ''}<div class="actions3">
           <button class="btn" data-update>${icon('refresh-cw')}Actualizar valor</button>
           <button class="btn" data-add>${icon('arrow-down-to-line')}Agregar</button>
           <button class="btn" data-withdraw>${icon('arrow-up-from-line')}Retirar</button></div>`;
@@ -147,6 +172,9 @@ export function openInvestment(id) {
         const d = b.dataset;
         if ('close' in d) return ctl.close();
         if ('edit' in d) return openInvestmentEdit(i.id);
+        if ('buy' in d) return openTrade({ inv: i, side: 'buy' });
+        if ('sell' in d) return openTrade({ inv: i, side: 'sell' });
+        if ('asset' in d) return openAsset({ market: i.market, ticker: i.ticker });
         if ('update' in d) {
           return openAmountSheet({
             title: 'Actualizar valor', label: `¿Cuánto vale hoy ${i.name}?`, value: st.value,
@@ -244,10 +272,12 @@ export function openInvestment(id) {
 /* ---------- Alta / edición ---------- */
 const PF_DAYS = [30, 60, 90, 180, 365];
 
-export function openInvestmentEdit(id) {
+export function openInvestmentEdit(id, preset = null) {
   const ex = id ? getInvestment(id) : null;
   const F = {
-    kind: ex?.kind || 'plazo_fijo', name: ex?.name || '',
+    kind: ex?.kind || (preset ? MARKET_TO_KIND[preset.market] : 'plazo_fijo'), name: ex?.name || preset?.ticker || '',
+    market: ex?.market || preset?.market || null, ticker: ex?.ticker || preset?.ticker || null,
+    units: ex?.units ? String(ex.units).replace('.', ',') : '',
     amount: '', value: '',
     capital: ex?.capital ? fmtNum(ex.capital) : '', tna: ex?.tna != null ? String(ex.tna).replace('.', ',') : '',
     days: ex?.days || 30, startDate: ex?.startDate || today(),
@@ -278,10 +308,16 @@ export function openInvestmentEdit(id) {
           </div>
           <div class="field"><label>Plazo</label><div class="chips wrap" id="ipd">${PF_DAYS.map(dd => `<button class="chip ${F.days === dd ? 'on' : ''}" data-days="${dd}">${dd} días</button>`).join('')}</div></div>
           <p class="help" id="pfprev" style="margin:-4px 2px 16px">${pfPreview()}</p>`
-        : !ex ? `
+        : ''}
+        ${!isPF && MARKETABLE.includes(F.kind) ? `
+          <div class="field"><label>Ticker (para que el valor se actualice solo)</label>
+            ${F.ticker ? `<div class="row" style="align-items:center"><button class="chip on" data-pickt>${icon(MARKETS[F.market]?.icon || 'globe')}${esc(F.ticker)} · ${MARKETS[F.market]?.short || ''}${quoteOf(F.market, F.ticker) ? ` · ${fmtPrice(quoteOf(F.market, F.ticker).price, quoteOf(F.market, F.ticker).ccy)}` : ''}</button><button class="link" data-unlink>Quitar</button></div>`
+              : `<button class="btn" data-pickt>${icon('search')}Buscar ticker (GGAL, AAPL, AL30, BTC…)</button>`}</div>
+          ${F.ticker ? `<div class="field"><label for="iu">Cantidad que tenés${MARKETS[F.market]?.per100 ? ' (valor nominal)' : ''}</label><input class="input" id="iu" inputmode="decimal" autocomplete="off" placeholder="Ej: ${F.market === 'crypto' ? '0,015' : '100'}" value="${F.units}"></div>` : ''}` : ''}
+        ${!isPF && !ex ? `
           <div class="field"><label for="ia">¿Cuánta plata pusiste?</label><input class="input" id="ia" inputmode="numeric" autocomplete="off" placeholder="$ 0" value="${F.amount}"></div>
-          <div class="field"><label for="iv">¿Cuánto vale hoy? (opcional)</label><input class="input" id="iv" inputmode="numeric" autocomplete="off" placeholder="Igual a lo que pusiste" value="${F.value}">
-            <p class="help">${F.kind === 'dolares' ? 'En pesos, al tipo de cambio de hoy.' : 'Si no lo sabés, dejalo vacío y lo actualizás después.'}</p></div>` : ''}
+          ${F.ticker ? '<p class="help" style="margin:-8px 2px 16px">El valor de hoy se calcula solo con el precio del mercado.</p>' : `<div class="field"><label for="iv">¿Cuánto vale hoy? (opcional)</label><input class="input" id="iv" inputmode="numeric" autocomplete="off" placeholder="Igual a lo que pusiste" value="${F.value}">
+            <p class="help">${F.kind === 'dolares' ? 'En pesos, al tipo de cambio de hoy.' : 'Si no lo sabés, dejalo vacío y lo actualizás después.'}</p></div>`}` : ''}
         ${!ex ? `
           <button class="switch-row" data-from><span class="info"><b>La estoy haciendo ahora con plata de una cuenta</b><small>Si la inversión ya existía, dejalo apagado: tus saldos no cambian.</small></span><span class="switch ${F.fromAccount ? 'on' : ''}"></span></button>
           ${F.fromAccount ? `<div class="field" style="margin-top:12px"><label>Sale de</label>${accChips(accs, F.accountId)}</div>` : ''}` : ''}
@@ -291,6 +327,8 @@ export function openInvestmentEdit(id) {
       el.querySelector('#in').oninput = e => { F.name = e.target.value; };
       const bindAmt = (sel, key) => { const x = el.querySelector(sel); if (x) amountInput(x, v => { F[key] = v; const p = el.querySelector('#pfprev'); if (p) p.innerHTML = pfPreview(); }); };
       bindAmt('#ic', 'capital'); bindAmt('#ia', 'amount'); bindAmt('#iv', 'value');
+      const iu = el.querySelector('#iu');
+      if (iu) iu.oninput = () => { iu.value = iu.value.replace(/[^\d.,]/g, ''); F.units = iu.value; };
       const tna = el.querySelector('#it');
       if (tna) tna.oninput = () => { tna.value = tna.value.replace(/[^\d,.]/g, ''); F.tna = tna.value; el.querySelector('#pfprev').innerHTML = pfPreview(); };
       const dd = el.querySelector('#id');
@@ -304,7 +342,12 @@ export function openInvestmentEdit(id) {
         if (!b) return;
         const d = b.dataset;
         if ('close' in d) return ctl.close();
-        if (d.kind) { F.kind = d.kind; return ctl.refresh(); }
+        if (d.kind) { F.kind = d.kind; if (!MARKETABLE.includes(F.kind)) { F.ticker = F.market = null; } return ctl.refresh(); }
+        if ('pickt' in d) {
+          const markets = { acciones: ['stock'], cedears: ['cedear'], bonos: ['bond', 'on'], cripto: ['crypto'] }[F.kind];
+          return openPickAsset({ title: 'Elegí el ticker', markets, onPick: a => { F.market = a.market; F.ticker = a.ticker; if (!F.name.trim()) F.name = a.ticker; ctl.refresh(); } });
+        }
+        if ('unlink' in d) { F.ticker = F.market = null; return ctl.refresh(); }
         if (d.days) { F.days = Number(d.days); mark(el.querySelector('#ipd'), b); el.querySelector('#pfprev').innerHTML = pfPreview(); return; }
         if ('from' in d) { F.fromAccount = !F.fromAccount; return ctl.refresh(); }
         if (d.acc) { F.accountId = d.acc; return mark(el.querySelector('#g-acc'), b); }
@@ -324,12 +367,24 @@ export function openInvestmentEdit(id) {
       if (!ex) { rec.initialInvested = F.fromAccount ? 0 : capital; amountOut = capital; }
     } else if (ex) {
       rec = { id: iid, kind: F.kind, name };
+      if (F.ticker) {
+        const units = parseUnits(F.units);
+        if (!units) { toast('Poné la cantidad que tenés', { icon: 'info' }); return; }
+        Object.assign(rec, { ticker: F.ticker, market: F.market, units });
+      } else Object.assign(rec, { ticker: null, market: null, units: null });
     } else {
       const amount = parseAmount(F.amount);
       if (!amount) { toast('Poné cuánta plata pusiste', { icon: 'info' }); return; }
-      const value = parseAmount(F.value) || amount;
+      let value = parseAmount(F.value) || amount;
+      let link = {};
+      if (F.ticker) {
+        const units = parseUnits(F.units);
+        if (!units) { toast('Poné la cantidad que compraste', { icon: 'info' }); return; }
+        link = { ticker: F.ticker, market: F.market, units };
+        value = Math.round(positionValue(link, quoteOf(F.market, F.ticker), marketCache().dollars) ?? amount);
+      }
       rec = {
-        id: iid, kind: F.kind, name, startDate: today(),
+        id: iid, kind: F.kind, name, startDate: today(), ...link,
         initialInvested: F.fromAccount ? 0 : amount,
         valuations: [{ date: today(), at: now(), value }],
       };

@@ -40,6 +40,16 @@ Los datos quedan guardados en cada dispositivo. Hasta la etapa 5, que agrega la 
 4. ✅ Reportes avanzados: mes, 3 y 6 meses, año o rango; ajuste por inflación (IPC INDEC vía api.argentinadatos.com, con carga manual); comparación con el período anterior; medios de pago; patrimonio; exportar a PDF (jsPDF, en `app/vendor`, se copia con `npm run vendor`) y a Excel.
 5. ✅ Sincronización entre dispositivos (Supabase, `supabase/schema.sql`), bloqueo con PIN / Face ID y carga de varios gastos pegando el resumen de la tarjeta.
 
+## Mercado y avisos
+
+- Pestaña **Mercado**: cartera con precios en vivo (data912/BYMA, Binance, dolarapi), seguimiento, dólar y riesgo país.
+- Las inversiones con `ticker` + `market` + `units` se valúan solas (`app/js/logic/market.js`).
+- Análisis técnico (`logic/analysis.js`) con los indicadores de la skill (`logic/ta.js`, copiado de `skills/analista-inversiones`).
+- Reglas de alertas y planes de compra en `logic/alerts-core.js`: la misma lógica corre en la app y en el robot.
+- Robot `tools/notifier/run.mjs` en GitHub Actions (`.github/workflows/avisos.yml`), cada 30 minutos en horario de BYMA.
+  Secretos del repo: `SUPABASE_SERVICE_KEY` (clave secreta de Supabase) y `VAPID_PRIVATE_KEY`.
+  Ojo: GitHub pausa los workflows programados si el repo no tiene actividad en 60 días; se reactivan desde la pestaña Actions.
+
 ## Sincronización (Supabase)
 
 1. Crear un proyecto gratis en supabase.com.

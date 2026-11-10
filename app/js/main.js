@@ -7,6 +7,8 @@ import { renderHome } from './views/home.js';
 import { renderMovs } from './views/movs.js';
 import { renderReports } from './views/reports.js';
 import { renderMore } from './views/more.js';
+import { renderMarket } from './views/market.js';
+import { refreshMarket, onMarketChange } from './logic/market.js';
 import { openTx } from './sheets/tx.js';
 import { startOnboarding } from './sheets/onboarding.js';
 import { updateBadge } from './sheets/upcoming.js';
@@ -21,6 +23,7 @@ function buildNav() {
     <button data-go="movs">${icon('list')}Movimientos</button>
     <button class="fab" id="fab" aria-label="Nuevo movimiento">${icon('plus')}</button>
     <button data-go="reports">${icon('chart-pie')}Reportes</button>
+    <button data-go="market">${icon('chart-line')}Mercado</button>
     <button data-go="more">${icon('layout-grid')}Más</button>`;
   nav.onclick = e => {
     const b = e.target.closest('button');
@@ -55,7 +58,10 @@ async function backgroundSync() {
 
 function showApp() {
   document.getElementById('nav').hidden = false;
-  go('home');
+  // Las notificaciones abren la app en Mercado (…/#mercado).
+  go(location.hash === '#mercado' ? 'market' : 'home');
+  if (location.hash) history.replaceState(null, '', location.pathname);
+  refreshMarket().catch(() => {});
   autoPayments();
   updateBadge();
   backgroundSync();
@@ -66,6 +72,7 @@ async function boot() {
   register('movs', renderMovs);
   register('reports', renderReports);
   register('more', renderMore);
+  register('market', renderMarket);
   buildNav();
 
   await load();
@@ -75,6 +82,9 @@ async function boot() {
     updateBadge();
     if (dirtyRows().length) scheduleSync();
   });
+  onMarketChange(() => { if (state.settings.onboarded) { rerender(); refreshSheets(); } });
+  // Precios al día mientras la app está abierta.
+  setInterval(() => { if (document.visibilityState === 'visible' && state.settings.onboarded) refreshMarket().catch(() => {}); }, 5 * 60000);
   onSyncChange(() => { if (state.settings.onboarded && document.getElementById('s-more').classList.contains('active')) rerender(); });
 
   if (state.settings.onboarded) {
@@ -93,6 +103,7 @@ async function boot() {
     autoPayments();
     updateBadge();
     backgroundSync();
+    refreshMarket().catch(() => {});
   });
   window.addEventListener('online', () => backgroundSync());
 

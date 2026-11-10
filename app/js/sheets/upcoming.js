@@ -8,6 +8,9 @@ import { upcomingItems, alertCount } from '../logic/recurring.js';
 import { openCard } from './cards.js';
 import { openInvestment } from './investments.js';
 import { openDebt } from './debts.js';
+import { openAsset, openTrade } from './asset.js';
+import { linkedHoldings } from '../logic/market.js';
+import { alertRules } from '../store.js';
 import { openTx } from './tx.js';
 import { openRecurringEdit, openRecurring } from './recurring.js';
 
@@ -17,6 +20,12 @@ export function handleUpcoming(key) {
   if (kind === 'card') return openCard(id);
   if (kind === 'inv') return openInvestment(id);
   if (kind === 'debt') return openDebt(id);
+  if (kind === 'plan') {
+    const r = alertRules().find(x => x.id === id);
+    if (!r) return;
+    const h = linkedHoldings().find(i => i.market === r.market && i.ticker.toUpperCase() === String(r.ticker).toUpperCase());
+    return h ? openTrade({ inv: h, side: 'buy' }) : openAsset({ market: r.market, ticker: r.ticker });
+  }
   const r = getRecurring(id);
   if (!r) return;
   const item = upcomingItems(60).find(i => i.kind === 'rec' && i.id === id && i.ym === ym);

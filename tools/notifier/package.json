@@ -1,0 +1,8 @@
+{
+  "name": "finanzas-avisos",
+  "private": true,
+  "description": "Robot que manda las notificaciones de mercado (GitHub Actions)",
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}

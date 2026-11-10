@@ -15,7 +15,7 @@ const UI_ICONS = [
   'archive-restore', 'target', 'gauge', 'repeat', 'shield-check', 'file-spreadsheet', 'bell-ring',
   'cloud', 'share', 'square-plus', 'triangle-alert', 'info', 'layers', 'credit-card', 'hand-coins',
   'trending-up', 'sparkles', 'chevron-down', 'wallet', 'pencil', 'bell', 'calendar-clock', 'skip-forward', 'pause', 'play',
-  'handshake', 'refresh-cw', 'arrow-down-to-line', 'arrow-up-from-line', 'minus', 'user', 'flag', 'circle-dollar-sign', 'file-text', 'trending-down', 'calendar-range', 'chart-column',
+  'handshake', 'refresh-cw', 'arrow-down-to-line', 'arrow-up-from-line', 'minus', 'user', 'flag', 'circle-dollar-sign', 'file-text', 'trending-down', 'calendar-range', 'chart-column', 'chart-line',
 ];
 
 const names = [...new Set([

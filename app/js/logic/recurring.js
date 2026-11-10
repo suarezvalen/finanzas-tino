@@ -5,6 +5,8 @@ import { cardStatus } from './cards.js';
 import { activeInvestments, pfEnd, pfTotal, debtRemaining } from './wealth.js';
 import { debts } from '../store.js';
 import { INVEST_KINDS } from '../constants.js';
+import { planDue } from './alerts-core.js';
+import { alertRules } from '../store.js';
 
 /** Fecha en la que toca un pago recurrente en un mes dado (o null si ese mes no corresponde). */
 export function occurrence(r, ym) {
@@ -87,6 +89,17 @@ export function upcomingItems(horizon = 30) {
     if (!rem || !d.dueDate || d.dueDate > end) continue;
     items.push({ kind: 'debt', id: d.id, title: d.direction === 'owe' ? `Pagar a ${d.name}` : `Cobrar a ${d.name}`, date: d.dueDate,
       amount: rem, overdue: d.dueDate < t, type: d.direction === 'owe' ? 'expense' : 'income', icon: 'handshake', color: '#FFB547' });
+  }
+  // Planes de compra (próxima fecha dentro del horizonte).
+  for (const r of alertRules()) {
+    if (r.type !== 'plan' || r.active === false) continue;
+    for (let k = 0; k <= horizon; k++) {
+      const d = addDays(t, k);
+      if (!planDue(r.plan || {}, d)) continue;
+      items.push({ kind: 'plan', id: r.id, title: `Comprar ${r.ticker}`, date: d, amount: r.plan?.amount || 0, overdue: false,
+        type: 'expense', icon: 'calendar-clock', color: '#2EF2A0', market: r.market, ticker: r.ticker });
+      break;
+    }
   }
   return items.sort((a, b) => a.date.localeCompare(b.date));
 }
