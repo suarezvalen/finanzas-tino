@@ -125,12 +125,12 @@ export function hourEvents({ now = arNow(), holidays = [], liveOpen = null, fixe
 
   // Contado inmediato, cauciones y bonos (17:00): opcional.
   const leftFx = fixed - m;
-  if (fixedAlert && fixed < close && isOpen && leftFx >= 25 && leftFx <= 75) {
+  if (fixedAlert && fixed < close && isOpen && leftFx >= 25 && leftFx <= 62) {
     add({ key: `mkt-close-fixed|${d}`, title: `${leftFx >= 55 ? 'Falta 1 hora' : `Faltan ${leftFx} minutos`}: cierran contado inmediato, cauciones y bonos`, body: `Cierran a las ${h.fixedClose}. Las acciones y CEDEARs a 24 hs siguen hasta las ${h.equityClose}.${tomorrowNote}` });
   }
   // Acciones y CEDEARs a 24 hs (18:00).
   const leftEq = close - m;
-  if (isOpen && leftEq >= 25 && leftEq <= 75) {
+  if (isOpen && leftEq >= 25 && leftEq <= 62) {
     add({ key: `mkt-close|${d}`, title: `${leftTxt(leftEq)} para el cierre del mercado`, body: `Acciones y CEDEARs a 24 hs se operan en Cocos hasta las ${h.equityClose}. Si tenés que hacer alguna operación, es ahora.${tomorrowNote}` });
   }
   return out;

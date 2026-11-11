@@ -10,6 +10,7 @@ import { arNow, fetchMarketOpen, fetchHolidays, hourEvents } from '../../app/js/
 
 const { SUPABASE_URL, SUPABASE_SERVICE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, DRY_RUN } = process.env;
 const dry = DRY_RUN === '1';
+const markOnly = process.env.MARK_ONLY === '1'; // registra los avisos como enviados sin mandarlos
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) { console.error('Faltan SUPABASE_URL / SUPABASE_SERVICE_KEY'); process.exit(1); }
 if (!dry) webpush.setVapidDetails(VAPID_SUBJECT || 'https://suarezvalen.github.io/finanzas-tino/', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
@@ -53,11 +54,11 @@ async function main() {
   let dollars = null;
   try { dollars = await fetchDollars(); } catch { /* sin dólar: no se valúa cripto en pesos */ }
   // Horario de BYMA: estado en vivo + feriados (este año y el siguiente, por si es diciembre).
-  const now = arNow();
-  const year = Number(now.date.slice(0, 4));
+  const ar = arNow();
+  const year = Number(ar.date.slice(0, 4));
   const [liveOpen, hol1, hol2] = await Promise.all([fetchMarketOpen(), fetchHolidays(year), fetchHolidays(year + 1)]);
   const holidays = [...hol1, ...hol2];
-  console.log(`BYMA ${now.date} ${Math.floor(now.minutes / 60)}:${String(now.minutes % 60).padStart(2, '0')}: ${liveOpen === null ? 'sin dato' : liveOpen ? 'abierto' : 'cerrado'} · ${holidays.length} feriados`);
+  console.log(`BYMA ${ar.date} ${Math.floor(ar.minutes / 60)}:${String(ar.minutes % 60).padStart(2, '0')}: ${liveOpen === null ? 'sin dato' : liveOpen ? 'abierto' : 'cerrado'} · ${holidays.length} feriados`);
 
   for (const [userId, d] of users) {
     const subs = d.push.filter(p => !p.deleted && p.endpoint);
@@ -76,7 +77,7 @@ async function main() {
     const logged = new Set(d.alertlog.map(a => a.id));
     // Avisos de apertura y cierre del mercado (se pueden apagar en Mercado → Alertas).
     const marketEvents = subs.length && settings.marketHours !== false
-      ? hourEvents({ now, holidays, liveOpen, logged, fixedAlert: settings.closeFixedAlert ?? invs.some(i => i.market === 'bond' || i.market === 'on') })
+      ? hourEvents({ now: ar, holidays, liveOpen, logged, fixedAlert: settings.closeFixedAlert ?? invs.some(i => i.market === 'bond' || i.market === 'on') })
       : [];
     if (!invs.length && !rules.length && !marketEvents.length) continue;
 
@@ -97,17 +98,8 @@ async function main() {
     console.log(`Usuario ${userId.slice(0, 8)}…: ${holdings.length} posiciones, ${rules.length} reglas, ${events.length} avisos nuevos, ${subs.length} dispositivos`);
 
     const out = [];
+    // Cada aviso se registra antes de mandarlo: si algo falla, preferimos no repetir una notificación.
     for (const e of events) {
-      console.log(`  → ${e.title} | ${e.body}`);
-      for (const s of subs) {
-        if (dry) continue;
-        try {
-          await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: e.title, body: e.body, tag: e.key, url: './#mercado' }), { TTL: 6 * 3600, urgency: 'high' });
-        } catch (err) {
-          console.log(`    no se pudo enviar (${err.statusCode || err.message})`);
-          if (err.statusCode === 404 || err.statusCode === 410) { s.deleted = true; s.updatedAt = now(); out.push(toRow(userId, 'push', s)); }
-        }
-      }
       const t = now();
       out.push(toRow(userId, 'alertlog', { id: e.key, ...e, date: today, seen: false, source: 'robot', createdAt: t, updatedAt: t, deleted: false }));
     }
@@ -116,6 +108,21 @@ async function main() {
       if (r) out.push(toRow(userId, 'alerts', { ...r, ...u, updatedAt: now() }));
     }
     await writeRows(out);
+    out.length = 0;
+
+    for (const e of events) {
+      console.log(`  → ${e.title} | ${e.body}${markOnly ? ' (solo registrado)' : ''}`);
+      for (const s of subs) {
+        if (dry || markOnly) continue;
+        try {
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: e.title, body: e.body, tag: e.key, url: './#mercado' }), { TTL: 6 * 3600, urgency: 'high' });
+        } catch (err) {
+          console.log(`    no se pudo enviar (${err.statusCode || err.message})`);
+          if (err.statusCode === 404 || err.statusCode === 410) { s.deleted = true; s.updatedAt = now(); out.push(toRow(userId, 'push', s)); }
+        }
+      }
+    }
+    await writeRows(out); // dispositivos que ya no existen
   }
 }
 

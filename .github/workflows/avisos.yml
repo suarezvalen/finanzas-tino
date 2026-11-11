@@ -15,6 +15,10 @@ on:
         description: 'Mandar una notificación de prueba a tus dispositivos'
         type: boolean
         default: false
+      registrar:
+        description: 'Registrar los avisos pendientes como enviados, sin mandarlos'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -41,3 +45,4 @@ jobs:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: https://suarezvalen.github.io/finanzas-tino/
           TEST_PUSH: ${{ inputs.prueba && '1' || '' }}
+          MARK_ONLY: ${{ inputs.registrar && '1' || '' }}
