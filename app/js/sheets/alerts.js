@@ -27,6 +27,7 @@ export function openAlerts() {
 
       el.innerHTML = `${sheetHead('Alertas y recordatorios')}
         ${notifCard()}
+        <button class="switch-row" data-hours style="margin-bottom:14px">${icon('clock')}<span class="info"><b>Apertura y cierre de BYMA</b><small>Te aviso cuando abre (o si hoy no abre por feriado) y cuando falta 1 hora para el cierre, con aviso si al día siguiente no hay mercado.</small></span><span class="switch ${state.settings.marketHours !== false ? 'on' : ''}"></span></button>
         <div class="field"><label>Aviso automático para lo que tenés</label>
           <div class="seg">${[[0, 'Apagado'], [3, '±3%'], [5, '±5%'], [8, '±8%']].map(([v, l]) => `<button data-auto="${v}" class="${auto === v ? 'on' : ''}">${l}</button>`).join('')}</div>
           <p class="help">Te aviso cuando algo de tu cartera se mueve más que eso en un día.</p></div>
@@ -44,6 +45,7 @@ export function openAlerts() {
         const d = b.dataset;
         if ('close' in d) return ctl.close();
         if (d.auto !== undefined) { await saveSettings({ autoMove: Number(d.auto) }); return; }
+        if ('hours' in d) { await saveSettings({ marketHours: state.settings.marketHours === false }); return; }
         if ('new' in d) return openAlertEdit();
         if ('plan' in d) return openAlertEdit(null, { type: 'plan' });
         if ('log' in d) return openAlertLog();

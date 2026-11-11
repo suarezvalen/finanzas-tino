@@ -1,7 +1,7 @@
 // Service worker: permite abrir la app sin internet.
 // Con conexión siempre trae la última versión; sin conexión usa la copia guardada.
 // Al publicar cambios, subí VERSION para limpiar copias viejas.
-const VERSION = 'v2.1.0';
+const VERSION = 'v2.2.0';
 const CACHE = `ft-${VERSION}`;
 const FONTS = 'ft-fonts';
 
@@ -17,7 +17,7 @@ const ASSETS = [
   'js/sheets/move.js', 'js/sheets/investments.js', 'js/sheets/goals.js', 'js/sheets/debts.js',
   'js/logic/report.js', 'js/logic/inflation.js', 'js/logic/pdf.js', 'js/sheets/inflation.js',
   'js/logic/sync.js', 'js/logic/parse.js', 'js/sheets/sync.js', 'js/sheets/lock.js', 'js/sheets/security.js', 'js/sheets/bulk.js',
-  'js/logic/ta.js', 'js/logic/market-core.js', 'js/logic/market.js', 'js/logic/analysis.js', 'js/logic/alerts-core.js', 'js/logic/push.js',
+  'js/logic/ta.js', 'js/logic/market-core.js', 'js/logic/market.js', 'js/logic/analysis.js', 'js/logic/alerts-core.js', 'js/logic/push.js', 'js/logic/market-hours.js',
   'js/views/market.js', 'js/sheets/asset.js', 'js/sheets/alerts.js', 'js/sheets/pick-asset.js',
   'vendor/jspdf.umd.min.js',
 ];

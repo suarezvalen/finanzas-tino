@@ -4,7 +4,9 @@ name: Avisos de mercado
 
 on:
   schedule:
-    - cron: '*/30 13-21 * * 1-5'  # cada 30 min de 10:00 a 18:30, lunes a viernes (horario de BYMA)
+    # A los :07 y :37 (no en punto: GitHub se demora más a esa hora), de 10:07 a 18:37 hora argentina, lunes a viernes.
+    # Así llegan el aviso de apertura (10:30) y los de "falta 1 hora" para el cierre de bonos (17:00) y acciones (18:00).
+    - cron: '7,37 13-21 * * 1-5'
     - cron: '0 11 * * *'           # 8:00 todos los días (recordatorios de compra)
     - cron: '0 */3 * * 0,6'        # fines de semana cada 3 horas (cripto)
   workflow_dispatch:

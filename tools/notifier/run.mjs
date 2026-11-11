@@ -6,6 +6,7 @@
 import webpush from 'web-push';
 import { fetchQuotes, fetchDollars, positionValue, MARKETS } from '../../app/js/logic/market-core.js';
 import { evaluate } from '../../app/js/logic/alerts-core.js';
+import { arNow, fetchMarketOpen, fetchHolidays, hourEvents } from '../../app/js/logic/market-hours.js';
 
 const { SUPABASE_URL, SUPABASE_SERVICE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, DRY_RUN } = process.env;
 const dry = DRY_RUN === '1';
@@ -51,6 +52,12 @@ async function main() {
   const today = todayAR();
   let dollars = null;
   try { dollars = await fetchDollars(); } catch { /* sin dólar: no se valúa cripto en pesos */ }
+  // Horario de BYMA: estado en vivo + feriados (este año y el siguiente, por si es diciembre).
+  const now = arNow();
+  const year = Number(now.date.slice(0, 4));
+  const [liveOpen, hol1, hol2] = await Promise.all([fetchMarketOpen(), fetchHolidays(year), fetchHolidays(year + 1)]);
+  const holidays = [...hol1, ...hol2];
+  console.log(`BYMA ${now.date} ${Math.floor(now.minutes / 60)}:${String(now.minutes % 60).padStart(2, '0')}: ${liveOpen === null ? 'sin dato' : liveOpen ? 'abierto' : 'cerrado'} · ${holidays.length} feriados`);
 
   for (const [userId, d] of users) {
     const subs = d.push.filter(p => !p.deleted && p.endpoint);
@@ -66,7 +73,12 @@ async function main() {
     const settings = d.meta.find(m => m.id === 'settings') || {};
     const invs = d.investments.filter(i => !i.deleted && i.ticker && i.market && i.units > 0 && !i.closedAt);
     const rules = d.alerts.filter(r => !r.deleted);
-    if (!invs.length && !rules.length) continue;
+    const logged = new Set(d.alertlog.map(a => a.id));
+    // Avisos de apertura y cierre del mercado (se pueden apagar en Mercado → Alertas).
+    const marketEvents = subs.length && settings.marketHours !== false
+      ? hourEvents({ now, holidays, liveOpen, logged, holdsFixed: invs.some(i => i.market === 'bond' || i.market === 'on') })
+      : [];
+    if (!invs.length && !rules.length && !marketEvents.length) continue;
 
     const assets = [...invs, ...rules].map(x => ({ market: x.market, ticker: String(x.ticker).toUpperCase() }));
     const quotes = await fetchQuotes(assets);
@@ -79,8 +91,9 @@ async function main() {
       return { name: i.name, market: i.market, ticker: String(i.ticker).toUpperCase(), units: i.units, cost: invested > 0 ? cost : null, value: positionValue(i, q, dollars) };
     });
 
-    const logged = new Set(d.alertlog.map(a => a.id));
-    const { events, ruleUpdates } = evaluate({ rules, holdings, quotes, today, logged, autoMove: settings.autoMove ?? 5 });
+    const evaluated = evaluate({ rules, holdings, quotes, today, logged, autoMove: settings.autoMove ?? 5 });
+    const { ruleUpdates } = evaluated;
+    const events = [...marketEvents.map(e => ({ ...e, type: 'market' })), ...evaluated.events];
     console.log(`Usuario ${userId.slice(0, 8)}…: ${holdings.length} posiciones, ${rules.length} reglas, ${events.length} avisos nuevos, ${subs.length} dispositivos`);
 
     const out = [];

@@ -5,11 +5,12 @@ import { today } from '../dates.js';
 import * as MC from './market-core.js';
 import { evaluate } from './alerts-core.js';
 import { invested } from './wealth.js';
+import { fetchMarketOpen, fetchHolidays, marketStatus, arNow } from './market-hours.js';
 
 export const MARKETS = MC.MARKETS;
 export const MARKET_TO_KIND = MC.MARKET_TO_KIND;
 const LS = 'ft-market';
-const cache = { quotes: {}, dollars: null, riesgo: null, at: 0 };
+const cache = { quotes: {}, dollars: null, riesgo: null, at: 0, byma: null, holidays: null };
 try { Object.assign(cache, JSON.parse(localStorage.getItem(LS)) || {}); } catch { /* sin datos guardados */ }
 const save = () => { try { localStorage.setItem(LS, JSON.stringify(cache)); } catch { /* lleno */ } };
 
@@ -55,11 +56,17 @@ export function refreshMarket({ force = false } = {}) {
   if (!navigator.onLine) return Promise.resolve(cache);
   running ||= (async () => {
     try {
-      const [quotes, dollars, riesgo] = await Promise.all([
+      const year = Number(arNow().date.slice(0, 4));
+      const needHolidays = cache.holidays?.year !== year || Date.now() - (cache.holidays?.at || 0) > 7 * 86400000;
+      const [quotes, dollars, riesgo, open, holidays] = await Promise.all([
         MC.fetchQuotes(trackedAssets()),
         MC.fetchDollars().catch(() => cache.dollars),
         MC.fetchRiesgoPais().catch(() => cache.riesgo),
+        fetchMarketOpen(),
+        needHolidays ? fetchHolidays(year) : null,
       ]);
+      cache.byma = { open, at: Date.now() };
+      if (holidays?.length) cache.holidays = { year, list: holidays, at: Date.now() };
       Object.assign(cache.quotes, quotes);
       cache.dollars = dollars || cache.dollars;
       cache.riesgo = riesgo || cache.riesgo;
@@ -122,6 +129,13 @@ export async function runAlerts() {
     await upsertMany('alertlog', events.map(e => ({ id: e.key, ...e, date: today(), seen: false, source: 'app' })));
   }
   return events;
+}
+
+/** Estado de BYMA para mostrar (abierto, cerrado, feriado, cuándo abre). */
+export function bymaStatus() {
+  // El dato en vivo vale unos minutos; si es viejo se usa solo el horario y el calendario.
+  const live = cache.byma && Date.now() - cache.byma.at < 10 * 60000 ? cache.byma.open : null;
+  return marketStatus({ holidays: cache.holidays?.list || [], liveOpen: live });
 }
 
 export const unseenAlerts = () => state.alertlog.filter(a => !a.deleted && !a.seen);

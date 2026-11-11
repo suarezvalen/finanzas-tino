@@ -3,7 +3,7 @@ import { watchlist, alertRules, upsert } from '../store.js';
 import { icon } from '../icons.js';
 import { money, esc, signed } from '../ui.js';
 import { catIc, empty, sparkline } from '../components.js';
-import { MARKETS, marketCache, quoteOf, linkedHoldings, holdingStats, refreshMarket, unseenAlerts } from '../logic/market.js';
+import { MARKETS, marketCache, quoteOf, linkedHoldings, holdingStats, refreshMarket, unseenAlerts, bymaStatus } from '../logic/market.js';
 import { activeInvestments, investStats, investSeries } from '../logic/wealth.js';
 import { fmtPrice } from '../logic/alerts-core.js';
 import { INVEST_KINDS } from '../constants.js';
@@ -37,11 +37,14 @@ export function renderMarket(el) {
   const unseen = unseenAlerts().length;
   const rules = alertRules().filter(r => r.active !== false);
   const d = cache.dollars || {};
+  const st = bymaStatus();
 
   el.innerHTML = `
     <header class="top"><h1 class="page-title">Mercado</h1>
       <button class="icon-btn" data-refresh aria-label="Actualizar">${icon('refresh-cw')}</button>
       <button class="icon-btn" data-log aria-label="Avisos">${icon('bell')}${unseen ? `<span class="dot-count">${unseen}</span>` : ''}</button></header>
+
+    <button class="mkt-status ${st.state}" data-hours><i></i><span><b>BYMA: ${esc(st.label)}</b><small>${esc(st.sub || '')}</small></span></button>
 
     <div class="fx-strip">
       ${[['MEP', d.mep], ['CCL', d.ccl], ['Blue', d.blue], ['Oficial', d.oficial], ['Cripto', d.cripto]].map(([l, x]) =>
@@ -90,6 +93,7 @@ export function renderMarket(el) {
     const ds = b.dataset;
     if ('refresh' in ds) { b.classList.add('spin'); await refreshMarket({ force: true }).catch(() => {}); return; }
     if ('log' in ds) return openAlertLog();
+    if ('hours' in ds) return openAlerts();
     if (ds.asset) { const [market, ticker] = ds.asset.split('|'); return openAsset({ market, ticker }); }
     if (ds.inv) return openInvestment(ds.inv);
     if ('allinv' in ds) return openInvestments();

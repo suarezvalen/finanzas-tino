@@ -469,3 +469,14 @@ h1, h2, h3 { font-weight: 600; }
 .item.unseen { background: rgba(0, 229, 255, .05); }
 .item.unseen .info b { color: var(--accent); }
 .item .info small .pos, .item .info small .neg { font-weight: 500; }
+
+/* Estado de BYMA */
+.mkt-status { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 9px 12px; margin: -6px 0 12px; }
+.mkt-status i { width: 9px; height: 9px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+.mkt-status.open i { background: var(--pos); box-shadow: 0 0 8px var(--pos); animation: pulse 2s infinite; }
+.mkt-status.pre i { background: var(--warn); }
+.mkt-status.holiday i, .mkt-status.closed i { background: var(--neg); }
+.mkt-status span { display: flex; flex-direction: column; min-width: 0; }
+.mkt-status b { font-size: 13px; font-weight: 600; }
+.mkt-status small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@keyframes pulse { 50% { opacity: .45; } }
