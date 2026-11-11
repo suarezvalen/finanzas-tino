@@ -54,6 +54,15 @@ async function main() {
 
   for (const [userId, d] of users) {
     const subs = d.push.filter(p => !p.deleted && p.endpoint);
+    // Notificación de prueba (se pide desde GitHub → Actions → Avisos de mercado → Run workflow).
+    if (process.env.TEST_PUSH === '1') {
+      for (const s of subs) {
+        try {
+          if (!dry) await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: 'Finanzas: prueba', body: '¡Las notificaciones funcionan! Te voy a avisar cuando algo se mueva.', tag: 'prueba', url: './#mercado' }), { TTL: 3600 });
+          console.log(`  prueba enviada a ${s.device?.slice(0, 40) || 'un dispositivo'}`);
+        } catch (err) { console.log(`  prueba no enviada (${err.statusCode || err.message})`); }
+      }
+    }
     const settings = d.meta.find(m => m.id === 'settings') || {};
     const invs = d.investments.filter(i => !i.deleted && i.ticker && i.market && i.units > 0 && !i.closedAt);
     const rules = d.alerts.filter(r => !r.deleted);

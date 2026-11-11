@@ -8,6 +8,11 @@ on:
     - cron: '0 11 * * *'           # 8:00 todos los días (recordatorios de compra)
     - cron: '0 */3 * * 0,6'        # fines de semana cada 3 horas (cripto)
   workflow_dispatch:
+    inputs:
+      prueba:
+        description: 'Mandar una notificación de prueba a tus dispositivos'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,3 +38,4 @@ jobs:
           VAPID_PUBLIC_KEY: BOpa03HAsR9WPCw_T5NRUYKVPvhbkK7t8pTVUuyR3jgmaOEYhgUU2gVg64v-m2KoO7yGsMczvN0S0tX4UV1EYKY
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_SUBJECT: https://suarezvalen.github.io/finanzas-tino/
+          TEST_PUSH: ${{ inputs.prueba && '1' || '' }}
