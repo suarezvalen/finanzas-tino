@@ -4,7 +4,8 @@ import { icon } from '../icons.js';
 import { openSheet, toast, esc, amountInput, parseAmount, fmtNum, mark } from '../ui.js';
 import { sheetHead, catIc, empty } from '../components.js';
 import { dayLabel } from '../dates.js';
-import { MARKETS, quoteOf, refreshMarket } from '../logic/market.js';
+import { MARKETS, quoteOf, refreshMarket, linkedHoldings } from '../logic/market.js';
+import { hoursFor, arNow } from '../logic/market-hours.js';
 import { RULE_TYPES, fmtPrice } from '../logic/alerts-core.js';
 import { openPickAsset, marketIc } from './pick-asset.js';
 import { ruleText } from './asset.js';
@@ -22,12 +23,18 @@ export function openAlerts() {
       const plans = rules.filter(r => r.type === 'plan');
       const price = rules.filter(r => r.type !== 'plan');
       const auto = state.settings.autoMove ?? 5;
+      const hoursOn = state.settings.marketHours !== false;
+      // Aviso de las 17:00: lo que elijas; si nunca lo tocaste, se activa solo si tenés bonos u ONs.
+      const holdsFixed = linkedHoldings().some(i => i.market === 'bond' || i.market === 'on');
+      const fixedOn = hoursOn && (state.settings.closeFixedAlert ?? holdsFixed);
       const row = r => `<button class="item tap" data-id="${r.id}">${catIc({ icon: r.type === 'plan' ? 'calendar-clock' : 'bell', color: r.active === false ? '#4A5866' : r.type === 'plan' ? '#2EF2A0' : '#00E5FF' })}
         <span class="info"><b>${esc(ruleText(r, quoteOf(r.market, r.ticker)?.ccy))}</b><small>${r.active === false ? 'Pausada' : r.armed === false ? 'Ya avisó · se reactiva si vuelve atrás' : 'Activa'}</small></span>${icon('chevron-right', 'chev')}</button>`;
 
       el.innerHTML = `${sheetHead('Alertas y recordatorios')}
         ${notifCard()}
-        <button class="switch-row" data-hours style="margin-bottom:14px">${icon('clock')}<span class="info"><b>Apertura y cierre de BYMA</b><small>Te aviso cuando abre (o si hoy no abre por feriado) y cuando falta 1 hora para el cierre, con aviso si al día siguiente no hay mercado.</small></span><span class="switch ${state.settings.marketHours !== false ? 'on' : ''}"></span></button>
+        <div class="label" style="margin:2px 4px 8px">Horario del mercado (Cocos)</div>
+        <button class="switch-row" data-hours style="margin-bottom:8px">${icon('clock')}<span class="info"><b>Apertura y cierre</b><small>Cuando abre a las ${hoursFor(arNow().date).open} (o si hoy no abre por feriado) y 1 hora antes del cierre de acciones y CEDEARs a 24 hs (${hoursFor(arNow().date).equityClose}), con aviso si al día siguiente no hay mercado.</small></span><span class="switch ${hoursOn ? 'on' : ''}"></span></button>
+        <button class="switch-row" data-fixed style="margin-bottom:14px${hoursOn ? '' : ';opacity:.45'}">${icon('clock')}<span class="info"><b>Cierre de contado inmediato, cauciones y bonos</b><small>1 hora antes de las ${hoursFor(arNow().date).fixedClose}. Activalo si operás en contado inmediato, cauciones o renta fija${holdsFixed && state.settings.closeFixedAlert == null ? ' (se activó solo porque tenés bonos u ONs)' : ''}.</small></span><span class="switch ${fixedOn ? 'on' : ''}"></span></button>
         <div class="field"><label>Aviso automático para lo que tenés</label>
           <div class="seg">${[[0, 'Apagado'], [3, '±3%'], [5, '±5%'], [8, '±8%']].map(([v, l]) => `<button data-auto="${v}" class="${auto === v ? 'on' : ''}">${l}</button>`).join('')}</div>
           <p class="help">Te aviso cuando algo de tu cartera se mueve más que eso en un día.</p></div>
@@ -46,6 +53,11 @@ export function openAlerts() {
         if ('close' in d) return ctl.close();
         if (d.auto !== undefined) { await saveSettings({ autoMove: Number(d.auto) }); return; }
         if ('hours' in d) { await saveSettings({ marketHours: state.settings.marketHours === false }); return; }
+        if ('fixed' in d) {
+          if (!hoursOn) { toast('Primero activá los avisos de apertura y cierre', { icon: 'info' }); return; }
+          await saveSettings({ closeFixedAlert: !fixedOn });
+          return;
+        }
         if ('new' in d) return openAlertEdit();
         if ('plan' in d) return openAlertEdit(null, { type: 'plan' });
         if ('log' in d) return openAlertLog();

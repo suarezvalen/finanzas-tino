@@ -76,7 +76,7 @@ async function main() {
     const logged = new Set(d.alertlog.map(a => a.id));
     // Avisos de apertura y cierre del mercado (se pueden apagar en Mercado → Alertas).
     const marketEvents = subs.length && settings.marketHours !== false
-      ? hourEvents({ now, holidays, liveOpen, logged, holdsFixed: invs.some(i => i.market === 'bond' || i.market === 'on') })
+      ? hourEvents({ now, holidays, liveOpen, logged, fixedAlert: settings.closeFixedAlert ?? invs.some(i => i.market === 'bond' || i.market === 'on') })
       : [];
     if (!invs.length && !rules.length && !marketEvents.length) continue;
 
