@@ -75,7 +75,9 @@ export function marketStatus({ now = arNow(), holidays = [], liveOpen = null } =
   if (hol) return { state: 'holiday', label: `Feriado: ${hol.nombre}`, sub: reopen, hours: h };
   if (now.minutes < open) return { state: 'pre', label: `Abre hoy a las ${h.open}`, sub: scheduleText(h), hours: h };
   if (now.minutes >= close) return { state: 'closed', label: 'Cerrado por hoy', sub: reopen, hours: h };
-  if (liveOpen === false) return { state: 'closed', label: 'Hoy no hay operaciones', sub: 'BYMA informa el mercado cerrado aunque no es feriado', hours: h };
+  // BYMA informa "cerrado" desde las 17:00 (fin del contado inmediato) aunque acciones y CEDEARs a 24 hs
+  // siguen hasta las 18:00: su dato en vivo solo sirve para saber si hoy abrió.
+  if (liveOpen === false && now.minutes < fixed) return { state: 'closed', label: 'Hoy no hay operaciones', sub: 'BYMA informa el mercado cerrado aunque no es feriado', hours: h };
   const left = close - now.minutes;
   return {
     state: 'open', label: `Abierto · acciones y CEDEARs hasta las ${h.equityClose}`,
@@ -90,9 +92,10 @@ export function marketStatus({ now = arNow(), holidays = [], liveOpen = null } =
 /**
  * @param {object} o
  * @param {boolean} [o.fixedAlert] avisar también 1 hora antes del cierre de contado inmediato, cauciones y bonos (17:00)
+ * @param {string}  [o.daySummary] resumen de cómo le fue a tu cartera en el día (para el aviso de cierre)
  * @returns {{ key, title, body }[]} avisos que corresponden ahora (sin los ya enviados)
  */
-export function hourEvents({ now = arNow(), holidays = [], liveOpen = null, fixedAlert = false, holdsFixed, logged = new Set() }) {
+export function hourEvents({ now = arNow(), holidays = [], liveOpen = null, fixedAlert = false, holdsFixed, daySummary = '', logged = new Set() }) {
   fixedAlert = fixedAlert || !!holdsFixed;
   const out = [];
   const add = e => { if (!logged.has(e.key)) out.push(e); };
@@ -107,13 +110,23 @@ export function hourEvents({ now = arNow(), holidays = [], liveOpen = null, fixe
     if (m >= 7 * 60) add({ key: `mkt-holiday|${d}`, title: 'Hoy no se opera en Cocos', body: `Feriado: ${hol.nombre}. El mercado vuelve a abrir ${dayName(next, d)} a las ${h.open}.` });
     return out;
   }
-  const isOpen = liveOpen ?? (m >= open && m < close); // si no se pudo consultar a BYMA, se usa el horario
-  if (liveOpen === true && m >= open && m < Math.min(close, open + 120)) {
+
+  // ¿Hoy abrió? BYMA dice "abierto" de 10:30 a 17:00; después de esa hora su dato ya no sirve
+  // (acciones y CEDEARs a 24 hs siguen hasta las 18:00), así que se recuerda si abrió más temprano.
+  const openedToday = liveOpen === true || logged.has(`mkt-open|${d}`) || logged.has(`mkt-close|${d}`) || logged.has(`mkt-close-fixed|${d}`);
+  const noOpenToday = logged.has(`mkt-noopen|${d}`);
+  const isOpen = m >= open && m < close && (m < fixed
+    ? (liveOpen ?? true)                      // antes de las 17:00 manda el dato en vivo (sin dato: el horario)
+    : openedToday || (liveOpen === null && !noOpenToday)); // después: abierto si hoy abrió
+
+  if (liveOpen === true && m >= open && m < Math.min(fixed, open + 120)) {
     add({ key: `mkt-open|${d}`, title: 'Abrió el mercado: ya podés operar en Cocos', body: scheduleText(h) });
   }
-  if (liveOpen === false && m >= open + 60 && m < close) {
+  // Solo a la mañana: si una hora después de la apertura sigue cerrado, hoy no abre.
+  if (liveOpen === false && !openedToday && m >= open + 60 && m < open + 180) {
     add({ key: `mkt-noopen|${d}`, title: 'Hoy el mercado no abrió', body: 'BYMA no tiene operaciones aunque no figura como feriado (puede ser un día sin actividad anunciado por el mercado). Revisá en Cocos antes de operar.' });
   }
+
   // Si el próximo día hábil "normal" (sin contar fines de semana) es feriado, se avisa: es el último momento para operar.
   let nb = addDays(d, 1);
   while ([0, 6].includes(weekday(nb))) nb = addDays(nb, 1);
@@ -132,6 +145,10 @@ export function hourEvents({ now = arNow(), holidays = [], liveOpen = null, fixe
   const leftEq = close - m;
   if (isOpen && leftEq >= 25 && leftEq <= 62) {
     add({ key: `mkt-close|${d}`, title: `${leftTxt(leftEq)} para el cierre del mercado`, body: `Acciones y CEDEARs a 24 hs se operan en Cocos hasta las ${h.equityClose}. Si tenés que hacer alguna operación, es ahora.${tomorrowNote}` });
+  }
+  // Cierre del día, con el resumen de tu cartera.
+  if (openedToday && !noOpenToday && m >= close && m < close + 45) {
+    add({ key: `mkt-closed|${d}`, title: 'Cerró el mercado', body: `${daySummary ? `${daySummary} ` : ''}Vuelve a abrir ${dayName(next, d)} a las ${h.open}.${tomorrowNote}` });
   }
   return out;
 }

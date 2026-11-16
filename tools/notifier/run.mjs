@@ -41,6 +41,26 @@ async function writeRows(rows) {
   if (!res.ok) throw new Error(`Supabase al guardar ${res.status}: ${await res.text()}`);
 }
 
+/** "Tu cartera hoy: +1,2% (+$ 9.300). Mejor: GGAL +2,1% · Peor: AAPL −0,8%." */
+async function summarizeDay(invs, dollars) {
+  const quotes = await fetchQuotes(invs.map(i => ({ market: i.market, ticker: String(i.ticker).toUpperCase() })));
+  const rows = invs.map(i => {
+    const q = quotes[`${i.market}:${String(i.ticker).toUpperCase()}`];
+    const value = positionValue(i, q, dollars);
+    return { ticker: String(i.ticker).toUpperCase(), pct: q?.pct, value, change: value != null && q?.pct != null ? value - value / (1 + q.pct / 100) : null };
+  }).filter(r => r.change != null);
+  if (!rows.length) return '';
+  const change = rows.reduce((s, r) => s + r.change, 0);
+  const before = rows.reduce((s, r) => s + (r.value - r.change), 0);
+  const pct = before > 0 ? (change / before) * 100 : 0;
+  const sign = v => (v >= 0 ? '+' : '−');
+  const p = v => `${sign(v)}${Math.abs(v).toFixed(1).replace('.', ',')}%`;
+  const money = v => `${sign(v)}$ ${Math.round(Math.abs(v)).toLocaleString('es-AR')}`;
+  rows.sort((a, b) => b.pct - a.pct);
+  const extremes = rows.length > 1 ? ` Mejor: ${rows[0].ticker} ${p(rows[0].pct)} · Peor: ${rows.at(-1).ticker} ${p(rows.at(-1).pct)}.` : '';
+  return `Tu cartera hoy: ${p(pct)} (${money(change)}).${extremes}`;
+}
+
 const toRow = (user_id, kind, data) => ({ user_id, kind, id: data.id, data, updated_at: data.updatedAt, deleted: !!data.deleted });
 
 async function main() {
@@ -75,9 +95,12 @@ async function main() {
     const invs = d.investments.filter(i => !i.deleted && i.ticker && i.market && i.units > 0 && !i.closedAt);
     const rules = d.alerts.filter(r => !r.deleted);
     const logged = new Set(d.alertlog.map(a => a.id));
+    // Resumen del día para el aviso de cierre (solo si corresponde mandarlo).
+    let daySummary = '';
+    if (invs.length && ar.minutes >= 18 * 60 - 5 && !logged.has(`mkt-closed|${ar.date}`)) daySummary = await summarizeDay(invs, dollars);
     // Avisos de apertura y cierre del mercado (se pueden apagar en Mercado → Alertas).
     const marketEvents = subs.length && settings.marketHours !== false
-      ? hourEvents({ now: ar, holidays, liveOpen, logged, fixedAlert: settings.closeFixedAlert ?? invs.some(i => i.market === 'bond' || i.market === 'on') })
+      ? hourEvents({ now: ar, holidays, liveOpen, logged, daySummary, fixedAlert: settings.closeFixedAlert ?? invs.some(i => i.market === 'bond' || i.market === 'on') })
       : [];
     if (!invs.length && !rules.length && !marketEvents.length) continue;
 
