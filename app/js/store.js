@@ -7,11 +7,11 @@ import { curYm, today } from './dates.js';
 const DEFAULT_SETTINGS = { id: 'settings', name: '', budget: 0, hideAmounts: false, onboarded: false, lastAccount: {} };
 // Inflación mensual (% IPC) por mes 'AAAA-MM'. manual: meses cargados a mano.
 const DEFAULT_INFLATION = { id: 'inflation', values: {}, manual: {}, fetchedAt: null };
-export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push'];
+export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes'];
 
 export const state = {
   accounts: [], categories: [], transactions: [], recurring: [], investments: [], goals: [], debts: [],
-  watch: [], alerts: [], alertlog: [], push: [],
+  watch: [], alerts: [], alertlog: [], push: [], informes: [],
   settings: { ...DEFAULT_SETTINGS },
   inflation: { ...DEFAULT_INFLATION },
 };
@@ -182,6 +182,7 @@ export const getGoal = id => state.goals.find(x => x.id === id);
 export const getDebt = id => state.debts.find(x => x.id === id);
 export const watchlist = () => live('watch').sort(byCreated);
 export const alertRules = () => live('alerts').sort(byCreated);
+export const informes = () => live('informes').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 export const alertLog = () => live('alertlog').sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
 /**

@@ -59,7 +59,18 @@ async function backgroundSync() {
 function showApp() {
   document.getElementById('nav').hidden = false;
   // Las notificaciones abren la app en Mercado (…/#mercado).
-  go(location.hash === '#mercado' ? 'market' : 'home');
+  // El aviso de un informe abre la app en ese informe (…/#informe/ID).
+  const rep = location.hash.match(/^#informe\/(.+)$/);
+  go(location.hash === '#mercado' || rep ? 'market' : 'home');
+  if (rep) {
+    const id = decodeURIComponent(rep[1]);
+    import('./sheets/informe.js').then(async m => {
+      // Si recién llega, puede no estar bajado todavía: se sincroniza primero.
+      const { informes } = await import('./store.js');
+      if (!informes().some(x => x.id === id) && session()) await sync().catch(() => {});
+      m.openInforme(id);
+    });
+  }
   if (location.hash) history.replaceState(null, '', location.pathname);
   refreshMarket().catch(() => {});
   autoPayments();

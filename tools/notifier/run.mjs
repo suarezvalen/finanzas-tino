@@ -6,7 +6,9 @@
 import webpush from 'web-push';
 import { fetchQuotes, fetchDollars, positionValue, MARKETS } from '../../app/js/logic/market-core.js';
 import { evaluate } from '../../app/js/logic/alerts-core.js';
-import { arNow, fetchMarketOpen, fetchHolidays, hourEvents } from '../../app/js/logic/market-hours.js';
+import { arNow, fetchMarketOpen, fetchHolidays, hourEvents, isTradingDay } from '../../app/js/logic/market-hours.js';
+import { fetchNews, breakingNews, newsName, newsKey } from '../../app/js/logic/news-core.js';
+import { fetchMacro, macroEvents } from '../../app/js/logic/macro-core.js';
 
 const { SUPABASE_URL, SUPABASE_SERVICE_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, DRY_RUN } = process.env;
 const dry = DRY_RUN === '1';
@@ -16,7 +18,7 @@ if (!dry) webpush.setVapidDetails(VAPID_SUBJECT || 'https://suarezvalen.github.i
 
 const headers = { apikey: SUPABASE_SERVICE_KEY, 'Content-Type': 'application/json' };
 if (SUPABASE_SERVICE_KEY.startsWith('eyJ')) headers.Authorization = `Bearer ${SUPABASE_SERVICE_KEY}`;
-const KINDS = ['investments', 'transactions', 'alerts', 'alertlog', 'push', 'meta'];
+const KINDS = ['investments', 'transactions', 'alerts', 'alertlog', 'push', 'meta', 'watch', 'informes'];
 const now = () => new Date().toISOString();
 const todayAR = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires' });
 
@@ -61,6 +63,39 @@ async function summarizeDay(invs, dollars) {
   return `Tu cartera hoy: ${p(pct)} (${money(change)}).${extremes}`;
 }
 
+/** Noticias importantes y nuevas de tus activos: un aviso por tema por día, como mucho 2 por activo en cada corrida, 3 por día y 5 en total. */
+async function newsFor(invs, watch, alertlog, logged, cache) {
+  const seen = new Set();
+  const assets = [...invs, ...watch.filter(w => !w.deleted)].filter(a => {
+    const k = `${a.market}:${String(a.ticker || '').toUpperCase()}`;
+    if (!a.ticker || !a.market || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const since = Date.now() - 2 * 86400000;
+  const out = [];
+  for (const a of assets) {
+    const ticker = String(a.ticker).toUpperCase();
+    const name = newsName({ ...a, ticker });
+    const past = alertlog.filter(x => x.type === 'news' && x.ticker === ticker && Date.parse(x.createdAt || 0) > since);
+    const todays = past.filter(x => x.date === todayAR());
+    if (todays.length >= 3) continue;
+    if (!cache.has(name)) cache.set(name, await fetchNews(name, { days: 1 }));
+    const picks = breakingNews(cache.get(name), {
+      sinceHours: 6, seenTitles: past.map(x => x.newsTitle || ''), seenTags: todays.map(x => x.tags?.[0]).filter(Boolean), max: 2, about: [name, ticker],
+    });
+    for (const n of picks) {
+      const key = newsKey(ticker, n.title);
+      if (logged.has(key) || out.some(o => o.key === key)) continue;
+      out.push({
+        key, type: 'news', market: a.market, ticker, newsTitle: n.title, link: n.link, source: n.source, tags: n.tags, publishedAt: n.date,
+        title: `${ticker} · ${n.tags[0]}${n.count > 1 ? ` (${n.count} medios)` : ''}`, body: `${n.title} — ${n.source}`,
+      });
+    }
+  }
+  return out.slice(0, 5);
+}
+
 const toRow = (user_id, kind, data) => ({ user_id, kind, id: data.id, data, updated_at: data.updatedAt, deleted: !!data.deleted });
 
 async function main() {
@@ -78,6 +113,13 @@ async function main() {
   const year = Number(ar.date.slice(0, 4));
   const [liveOpen, hol1, hol2] = await Promise.all([fetchMarketOpen(), fetchHolidays(year), fetchHolidays(year + 1)]);
   const holidays = [...hol1, ...hol2];
+  // Noticias: cada 15 minutos con el mercado abierto (el robot corre cada 5) y en cada corrida fuera de horario (≈ 1 por hora).
+  const busy = isTradingDay(ar.date, holidays) && ar.minutes >= 9 * 60 + 30 && ar.minutes < 19 * 60;
+  const newsTime = process.env.FORCE_NEWS === '1' || !busy || ar.minutes % 15 < 5;
+  // Dólar y riesgo país: solo en días hábiles, con el mercado abierto.
+  let macro = null;
+  if (isTradingDay(ar.date, holidays) && ar.minutes >= 10 * 60 + 45 && ar.minutes < 18 * 60 + 30) macro = await fetchMacro(dollars, ar.date).catch(() => null);
+  const newsCache = new Map(); // un mismo nombre se busca una sola vez por corrida
   console.log(`BYMA ${ar.date} ${Math.floor(ar.minutes / 60)}:${String(ar.minutes % 60).padStart(2, '0')}: ${liveOpen === null ? 'sin dato' : liveOpen ? 'abierto' : 'cerrado'} · ${holidays.length} feriados`);
 
   for (const [userId, d] of users) {
@@ -102,7 +144,14 @@ async function main() {
     const marketEvents = subs.length && settings.marketHours !== false
       ? hourEvents({ now: ar, holidays, liveOpen, logged, daySummary, fixedAlert: settings.closeFixedAlert ?? invs.some(i => i.market === 'bond' || i.market === 'on') })
       : [];
-    if (!invs.length && !rules.length && !marketEvents.length) continue;
+    // Dólar y riesgo país (se pueden apagar en Mercado → Alertas).
+    const macroEv = subs.length && macro && settings.macroAlerts !== false ? macroEvents(macro, { date: ar.date, logged }) : [];
+    // Radar de noticias de lo que tenés (y lo que seguís en Mercado).
+    const newsEv = subs.length && newsTime && settings.newsAlerts !== false ? await newsFor(invs, d.watch, d.alertlog, logged, newsCache) : [];
+    // Informes nuevos (los arma la rutina en la nube): se avisa una vez.
+    const reportEv = d.informes.filter(r => !r.deleted && !r.notified && r.createdAt && Date.now() - Date.parse(r.createdAt) < 12 * 3600000)
+      .map(r => ({ key: `report|${r.id}`, type: 'report', reportId: r.id, title: r.pushTitle || 'Tu informe está listo', body: r.pushBody || r.headline || 'Abrí la app para leerlo.', url: `./#informe/${r.id}` }));
+    if (!invs.length && !rules.length && !marketEvents.length && !macroEv.length && !newsEv.length && !reportEv.length) continue;
 
     const assets = [...invs, ...rules].map(x => ({ market: x.market, ticker: String(x.ticker).toUpperCase() }));
     const quotes = await fetchQuotes(assets);
@@ -117,7 +166,7 @@ async function main() {
 
     const evaluated = evaluate({ rules, holdings, quotes, today, logged, autoMove: settings.autoMove ?? 5 });
     const { ruleUpdates } = evaluated;
-    const events = [...marketEvents.map(e => ({ ...e, type: 'market' })), ...evaluated.events];
+    const events = [...marketEvents.map(e => ({ ...e, type: 'market' })), ...evaluated.events, ...macroEv, ...newsEv, ...reportEv];
     console.log(`Usuario ${userId.slice(0, 8)}…: ${holdings.length} posiciones, ${rules.length} reglas, ${events.length} avisos nuevos, ${subs.length} dispositivos`);
 
     const out = [];
@@ -125,6 +174,10 @@ async function main() {
     for (const e of events) {
       const t = now();
       out.push(toRow(userId, 'alertlog', { id: e.key, ...e, date: today, seen: false, source: 'robot', createdAt: t, updatedAt: t, deleted: false }));
+    }
+    for (const e of reportEv) {
+      const r = d.informes.find(x => x.id === e.reportId);
+      out.push(toRow(userId, 'informes', { ...r, notified: true, updatedAt: now() }));
     }
     for (const u of ruleUpdates) {
       const r = rules.find(x => x.id === u.id);
@@ -138,7 +191,7 @@ async function main() {
       for (const s of subs) {
         if (dry || markOnly) continue;
         try {
-          await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: e.title, body: e.body, tag: e.key, url: './#mercado' }), { TTL: 6 * 3600, urgency: 'high' });
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: e.title, body: e.body, tag: e.key, url: e.url || e.link || './#mercado' }), { TTL: 6 * 3600, urgency: 'high' });
         } catch (err) {
           console.log(`    no se pudo enviar (${err.statusCode || err.message})`);
           if (err.statusCode === 404 || err.statusCode === 410) { s.deleted = true; s.updatedAt = now(); out.push(toRow(userId, 'push', s)); }

@@ -38,10 +38,12 @@ revoke all on function public.disparar_robot_avisos() from public, anon, authent
 --   cada 5 minutos de 10:00 a 17:55, lunes a viernes  → apertura (10:30) y avisos de cierre (17:00 y 18:00)
 --   18:00 a 18:40, lunes a viernes                      → aviso "Cerró el mercado" con el resumen del día
 --   8:00 de lunes a viernes                             → aviso de feriado
-select cron.unschedule(jobname) from cron.job where jobname in ('avisos-mercado', 'avisos-8am', 'avisos-cierre');
+--   a los :30 de cada hora, todos los días              → noticias importantes y aviso de informes nuevos
+select cron.unschedule(jobname) from cron.job where jobname in ('avisos-mercado', 'avisos-8am', 'avisos-cierre', 'avisos-noticias');
 select cron.schedule('avisos-mercado', '*/5 13-20 * * 1-5', 'select public.disparar_robot_avisos()');
 select cron.schedule('avisos-cierre', '0-40/5 21 * * 1-5', 'select public.disparar_robot_avisos()');
 select cron.schedule('avisos-8am', '0 11 * * 1-5', 'select public.disparar_robot_avisos()');
+select cron.schedule('avisos-noticias', '30 * * * *', 'select public.disparar_robot_avisos()');
 
 -- Prueba inmediata: dispara una corrida ahora.
 select public.disparar_robot_avisos();

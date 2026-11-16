@@ -3,8 +3,9 @@ const DB_NAME = 'finanzas-tino';
 // Las versiones solo agregan almacenes, nunca borran datos.
 // v2 (etapa 2): 'recurring'. v3 (etapa 3): 'investments', 'goals', 'debts'.
 // v4 (mercado): 'watch' (seguimiento), 'alerts' (reglas), 'alertlog' (avisos), 'push' (dispositivos para notificaciones).
-const VERSION = 4;
-export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push'];
+// v5: 'informes' (informes diarios y semanales que arma la rutina en la nube).
+const VERSION = 5;
+export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes'];
 
 let dbPromise;
 function open() {

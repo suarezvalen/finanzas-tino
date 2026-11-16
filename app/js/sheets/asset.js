@@ -7,7 +7,7 @@ import { today, shortDate } from '../dates.js';
 import { MARKETS, quoteOf, history, linkedHoldings, holdingStats, refreshMarket, quoteNow, marketCache, onMarketChange } from '../logic/market.js';
 import { analyze, fmtPctAbs } from '../logic/analysis.js';
 import { fmtPrice, RULE_TYPES, planText } from '../logic/alerts-core.js';
-import { positionValue } from '../logic/market-core.js';
+import { positionValue, fetchLive, cedearPremium } from '../logic/market-core.js';
 import { marketIc } from './pick-asset.js';
 
 const RANGES = [['1M', 22], ['3M', 66], ['6M', 130], ['1A', 252], ['5A', 1260]];
@@ -38,7 +38,7 @@ function chart(bars, { cost } = {}) {
 /** Detalle de un activo. */
 export function openAsset({ market, ticker }) {
   ticker = ticker.toUpperCase();
-  const S = { range: '1A', bars: null, a: null, error: '' };
+  const S = { range: '1A', bars: null, a: null, error: '', premium: undefined };
   const crypto = market === 'crypto';
   let closed = false;
 
@@ -82,6 +82,7 @@ export function openAsset({ market, ticker }) {
           <div class="row" style="margin-top:14px"><button class="btn primary" data-buy>${icon('plus')}Comprar</button><button class="btn" data-sell>${icon('minus')}Vender</button></div>
         </section>` : `<button class="btn primary" data-add style="margin-bottom:14px">${icon('plus')}Agregar a mi cartera</button>`}
 
+        ${market === 'cedear' ? premiumCard(S.premium) : ''}
         <section class="card">
           <div class="label">Análisis</div>
           ${a?.ok ? `
@@ -138,6 +139,10 @@ export function openAsset({ market, ticker }) {
   onMarketChange(() => { if (!closed) ctl.refresh(); });
   (async () => {
     if (!quoteOf(market, ticker)) await quoteNow([{ market, ticker }]).catch(() => {});
+    if (market === 'cedear') {
+      fetchLive('cedear').then(live => { S.premium = cedearPremium(live, ticker, marketCache().dollars?.ccl?.venta); })
+        .catch(() => { S.premium = null; }).finally(() => { if (!closed) ctl.refresh(); });
+    }
     try {
       const raw = await history(market, ticker);
       const h = holdingOf(market, ticker);
@@ -147,6 +152,22 @@ export function openAsset({ market, ticker }) {
     if (!closed) ctl.refresh();
   })();
   return ctl;
+}
+
+/** ¿Caro o barato? Dólar implícito del CEDEAR vs. el CCL. */
+function premiumCard(p) {
+  if (p === undefined) return '';
+  if (!p) return '<section class="card"><div class="label">¿Caro o barato?</div><p class="help">No hay precio de la especie en dólar cable (C) para comparar este CEDEAR con el CCL.</p></section>';
+  const n = v => `$ ${Math.round(v).toLocaleString('es-AR')}`;
+  const pp = `${p.premium >= 0 ? '+' : '−'}${Math.abs(p.premium).toFixed(1).replace('.', ',')}%`;
+  const cls = p.tone === 'good' ? 'pos' : p.tone === 'bad' ? 'neg' : '';
+  const txt = p.tone === 'neutral' ? 'Pagás un dólar parecido al del mercado: precio justo.'
+    : p.tone === 'bad' ? 'Comprarlo acá implica pagar un dólar más caro que el CCL. Si podés esperar, suele volver a la línea.'
+    : 'Se compra con un dólar más barato que el CCL: es un punto a favor si ya lo querías comprar.';
+  return `<section class="card"><div class="label">¿Caro o barato?</div>
+    <div class="rows"><div><span>Dólar implícito del CEDEAR</span><b>${n(p.implied)}</b></div><div><span>CCL del mercado</span><b>${n(p.ccl)}</b></div>
+    <div><span>Diferencia</span><b class="${cls}">${pp} · ${esc(p.label)}</b></div></div>
+    <p class="help" style="margin-top:8px">${txt}${p.fresh ? '' : ' (Con precios del último cierre: hoy todavía no operó.)'}</p></section>`;
 }
 
 export function ruleText(r, ccy = 'ARS') {

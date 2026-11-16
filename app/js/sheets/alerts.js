@@ -11,7 +11,8 @@ import { openPickAsset, marketIc } from './pick-asset.js';
 import { ruleText } from './asset.js';
 import { pushSupported, pushEnabled, enablePush, disablePush } from '../logic/push.js';
 
-const WEEKDAYS = [[1, 'Lunes'], [2, 'Martes'], [3, 'Miércoles'], [4, 'Jueves'], [5, 'Viernes']];
+const LOG_ICON = { plan: 'calendar-clock', news: 'newspaper', macro: 'landmark', report: 'file-text', market: 'clock' };
+const WEEKDAYS =[[1, 'Lunes'], [2, 'Martes'], [3, 'Miércoles'], [4, 'Jueves'], [5, 'Viernes']];
 
 /** Panel principal: reglas, avisos automáticos y notificaciones. */
 export function openAlerts() {
@@ -35,6 +36,9 @@ export function openAlerts() {
         <div class="label" style="margin:2px 4px 8px">Horario del mercado (Cocos)</div>
         <button class="switch-row" data-hours style="margin-bottom:8px">${icon('clock')}<span class="info"><b>Apertura y cierre</b><small>Cuando abre a las ${hoursFor(arNow().date).open} (o si hoy no abre por feriado) y 1 hora antes del cierre de acciones y CEDEARs a 24 hs (${hoursFor(arNow().date).equityClose}), con aviso si al día siguiente no hay mercado.</small></span><span class="switch ${hoursOn ? 'on' : ''}"></span></button>
         <button class="switch-row" data-fixed style="margin-bottom:14px${hoursOn ? '' : ';opacity:.45'}">${icon('clock')}<span class="info"><b>Cierre de contado inmediato, cauciones y bonos</b><small>1 hora antes de las ${hoursFor(arNow().date).fixedClose}. Activalo si operás en contado inmediato, cauciones o renta fija${holdsFixed && state.settings.closeFixedAlert == null ? ' (se activó solo porque tenés bonos u ONs)' : ''}.</small></span><span class="switch ${fixedOn ? 'on' : ''}"></span></button>
+        <div class="label" style="margin:2px 4px 8px">Radar</div>
+        <button class="switch-row" data-news style="margin-bottom:8px">${icon('newspaper')}<span class="info"><b>Noticias importantes al instante</b><small>Renuncias, escándalos, juicios, resultados, fusiones o caídas fuertes de lo que tenés o seguís (en español e inglés).</small></span><span class="switch ${state.settings.newsAlerts !== false ? 'on' : ''}"></span></button>
+        <button class="switch-row" data-macro style="margin-bottom:14px">${icon('landmark')}<span class="info"><b>Dólar y riesgo país</b><small>Si el MEP o el CCL se mueven 2% o más en el día, o el riesgo país 5% o más.</small></span><span class="switch ${state.settings.macroAlerts !== false ? 'on' : ''}"></span></button>
         <div class="field"><label>Aviso automático para lo que tenés</label>
           <div class="seg">${[[0, 'Apagado'], [3, '±3%'], [5, '±5%'], [8, '±8%']].map(([v, l]) => `<button data-auto="${v}" class="${auto === v ? 'on' : ''}">${l}</button>`).join('')}</div>
           <p class="help">Te aviso cuando algo de tu cartera se mueve más que eso en un día.</p></div>
@@ -53,6 +57,8 @@ export function openAlerts() {
         if ('close' in d) return ctl.close();
         if (d.auto !== undefined) { await saveSettings({ autoMove: Number(d.auto) }); return; }
         if ('hours' in d) { await saveSettings({ marketHours: state.settings.marketHours === false }); return; }
+        if ('news' in d) { await saveSettings({ newsAlerts: state.settings.newsAlerts === false }); return; }
+        if ('macro' in d) { await saveSettings({ macroAlerts: state.settings.macroAlerts === false }); return; }
         if ('fixed' in d) {
           if (!hoursOn) { toast('Primero activá los avisos de apertura y cierre', { icon: 'info' }); return; }
           await saveSettings({ closeFixedAlert: !fixedOn });
@@ -174,9 +180,14 @@ export function openAlertLog() {
       const log = alertLog().slice(0, 100);
       const unseen = log.filter(a => !a.seen);
       el.innerHTML = `${sheetHead('Avisos')}
-        ${log.length ? `<div class="list">${log.map(a => `<button class="item tap ${a.seen ? '' : 'unseen'}" data-asset="${a.market}|${a.ticker}">
-            ${catIc({ icon: a.type === 'plan' ? 'calendar-clock' : 'bell', color: a.seen ? '#4A5866' : '#00E5FF' })}
-            <span class="info"><b>${esc(a.title)}</b><small>${dayLabel(a.date)} · ${esc(a.body)}</small></span></button>`).join('')}</div>`
+        ${log.length ? `<div class="list">${log.map(a => {
+            const ic = catIc({ icon: LOG_ICON[a.type] || 'bell', color: a.seen ? '#4A5866' : '#00E5FF' });
+            const info = `<span class="info"><b>${esc(a.title)}</b><small>${dayLabel(a.date)} · ${esc(a.body)}</small></span>`;
+            // Noticias: se abre la nota; informes: el informe; lo demás: el activo.
+            if (a.type === 'news' && /^https?:\/\//.test(a.link || '')) return `<a class="item tap ${a.seen ? '' : 'unseen'}" href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">${ic}${info}${icon('external-link', 'chev')}</a>`;
+            if (a.type === 'report') return `<button class="item tap ${a.seen ? '' : 'unseen'}" data-informe="${esc(a.reportId)}">${ic}${info}</button>`;
+            return `<button class="item tap ${a.seen ? '' : 'unseen'}" data-asset="${a.market}|${a.ticker}">${ic}${info}</button>`;
+          }).join('')}</div>`
           : empty('bell', 'Sin avisos todavía', 'Cuando una alerta se cumpla o algo de tu cartera se mueva fuerte, aparece acá.')}
         <button class="btn" data-cfg style="margin-top:14px">${icon('settings')}Configurar alertas</button>`;
       if (unseen.length) setTimeout(() => upsertMany('alertlog', unseen.map(a => ({ id: a.id, seen: true }))), 1500);
@@ -185,6 +196,7 @@ export function openAlertLog() {
         if (!b) return;
         if ('close' in b.dataset) return ctl.close();
         if ('cfg' in b.dataset) return openAlerts();
+        if (b.dataset.informe) { const { openInforme } = await import('./informe.js'); return openInforme(b.dataset.informe); }
         if (b.dataset.asset) {
           const [market, ticker] = b.dataset.asset.split('|');
           if (market && ticker && market !== 'undefined') { const { openAsset } = await import('./asset.js'); openAsset({ market, ticker }); }

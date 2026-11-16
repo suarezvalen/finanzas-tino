@@ -105,3 +105,20 @@ export function positionValue({ market, units }, quote, dollars) {
   }
   return v;
 }
+
+/**
+ * ¿El CEDEAR está caro o barato? Compara el dólar implícito (precio en pesos ÷ precio de la especie "C",
+ * que cotiza en dólares cable) con el CCL de mercado. Dentro de ±1,5% se considera en línea.
+ * @param {object} live resultado de fetchLive('cedear')
+ * @returns {{ implied, ccl, premium, label, tone, fresh } | null} fresh=false: precios del cierre anterior (sin operaciones hoy)
+ */
+export function cedearPremium(live, ticker, ccl) {
+  const t = String(ticker).toUpperCase();
+  const ars = live?.[t], c = live?.[`${t}C`];
+  if (!ars?.price || !c?.price || !ccl) return null;
+  const implied = ars.price / c.price;
+  const premium = (implied / ccl - 1) * 100;
+  if (Math.abs(premium) > 25) return null; // dato raro (precio viejo de una especie poco operada)
+  const label = Math.abs(premium) < 1.5 ? 'En línea con el CCL' : premium > 0 ? 'Caro vs. el CCL' : 'Barato vs. el CCL';
+  return { implied, ccl, premium, label, tone: Math.abs(premium) < 1.5 ? 'neutral' : premium > 0 ? 'bad' : 'good', fresh: ars.vol > 0 && c.vol > 0 };
+}

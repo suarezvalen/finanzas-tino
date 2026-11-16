@@ -1,5 +1,5 @@
 // Pestaña Mercado: tu cartera con precios en vivo, seguimiento, dólar, riesgo país y alertas.
-import { watchlist, alertRules, upsert } from '../store.js';
+import { watchlist, alertRules, upsert, informes } from '../store.js';
 import { icon } from '../icons.js';
 import { money, esc, signed } from '../ui.js';
 import { catIc, empty, sparkline } from '../components.js';
@@ -12,6 +12,7 @@ import { openAsset, ruleText } from '../sheets/asset.js';
 import { openInvestments, openInvestment, openInvestmentEdit } from '../sheets/investments.js';
 import { openAlerts, openAlertLog } from '../sheets/alerts.js';
 import { pushEnabled, pushSupported } from '../logic/push.js';
+import { openInforme, openInformes, informeItem } from '../sheets/informe.js';
 
 const pctSpan = p => (p == null ? '' : `<span class="${p >= 0 ? 'pos' : 'neg'}">${p >= 0 ? '+' : '−'}${Math.abs(p).toFixed(2).replace('.', ',')}%</span>`);
 const fmtUnits = n => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 6 }).format(n);
@@ -38,6 +39,7 @@ export function renderMarket(el) {
   const rules = alertRules().filter(r => r.active !== false);
   const d = cache.dollars || {};
   const st = bymaStatus();
+  const reps = informes();
 
   el.innerHTML = `
     <header class="top"><h1 class="page-title">Mercado</h1>
@@ -62,6 +64,10 @@ export function renderMarket(el) {
         </div>` : ''}
       <p class="help" style="margin-top:10px">Precios ${timeAgo(cache.at)}. Fuente: BYMA (data912), Binance y dolarapi.</p>
     </section>
+
+    <div class="section-h"><h3>Informes</h3>${reps.length > 2 ? '<button data-informes>Ver todos</button>' : ''}</div>
+    ${reps.length ? `<div class="list">${reps.slice(0, 2).map(informeItem).join('')}</div>`
+      : `<div class="card card-cta"><span class="cta-ic">${icon('file-text')}</span><span class="info"><b>Informes de tu cartera</b><small>De lunes a viernes a las 10:00 y 18:15, y el domingo la semana: noticias, por qué se movió cada activo y qué podrías hacer a corto, mediano o largo plazo.</small></span></div>`}
 
     <div class="section-h"><h3>Mi cartera</h3><button data-newinv>Agregar</button></div>
     ${holdings.length ? `<div class="list">${holdings.map(h => `<button class="item tap" data-asset="${h.i.market}|${h.i.ticker}">
@@ -93,6 +99,8 @@ export function renderMarket(el) {
     const ds = b.dataset;
     if ('refresh' in ds) { b.classList.add('spin'); await refreshMarket({ force: true }).catch(() => {}); return; }
     if ('log' in ds) return openAlertLog();
+    if (ds.informe) return openInforme(ds.informe);
+    if ('informes' in ds) return openInformes();
     if ('hours' in ds) return openAlerts();
     if (ds.asset) { const [market, ticker] = ds.asset.split('|'); return openAsset({ market, ticker }); }
     if (ds.inv) return openInvestment(ds.inv);
