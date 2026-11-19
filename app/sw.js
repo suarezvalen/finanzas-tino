@@ -1,7 +1,7 @@
 // Service worker: permite abrir la app sin internet.
 // Con conexión siempre trae la última versión; sin conexión usa la copia guardada.
 // Al publicar cambios, subí VERSION para limpiar copias viejas.
-const VERSION = 'v2.4.1';
+const VERSION = 'v2.4.2';
 const CACHE = `ft-${VERSION}`;
 const FONTS = 'ft-fonts';
 
@@ -24,7 +24,8 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache: 'reload' para no guardar copias viejas: GitHub Pages deja cachear cada archivo 10 minutos.
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(a => new Request(a, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -58,7 +59,8 @@ async function cacheFirst(req, name) {
 async function networkFirst(req) {
   const cache = await caches.open(CACHE);
   try {
-    const res = await fetch(req, { signal: AbortSignal.timeout(4000) });
+    // 'no-cache' pregunta siempre al servidor si hay versión nueva (si no cambió, responde 304 y es rápido).
+    const res = await fetch(req.url, { cache: 'no-cache', credentials: 'same-origin', signal: AbortSignal.timeout(4000) });
     if (res.ok) cache.put(req, res.clone());
     return res;
   } catch {
