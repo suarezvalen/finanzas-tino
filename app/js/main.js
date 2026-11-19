@@ -1,5 +1,7 @@
 import { load, state, subscribe, dirtyRows, wipe } from './store.js';
-import { register, go, rerender } from './router.js';
+import { register, go, rerender, onMode, switchMode, currentMode } from './router.js';
+import { renderBizHome, renderBizCampaigns, renderBizLog, renderBizSettings } from './views/biz.js';
+import { openBizCost } from './sheets/biz.js';
 import { icon } from './icons.js';
 import { refreshSheets, esc, toast } from './ui.js';
 import { today } from './dates.js';
@@ -16,9 +18,17 @@ import { lockNow, watchVisibility } from './sheets/lock.js';
 import { runAutoRecurring } from './logic/recurring.js';
 import { sync, scheduleSync, session, onSyncChange } from './logic/sync.js';
 
-function buildNav() {
+function buildNav(mode = currentMode()) {
   const nav = document.getElementById('nav');
-  nav.innerHTML = `
+  const biz = mode === 'biz';
+  document.getElementById('app').classList.toggle('biz-mode', biz);
+  nav.innerHTML = biz ? `
+    <button data-mode="personal">${icon('house')}Personal</button>
+    <button data-go="bres">${icon('chart-column')}Resumen</button>
+    <button class="fab" id="fab" aria-label="Nuevo gasto del negocio">${icon('plus')}</button>
+    <button data-go="bcamp">${icon('target')}Campañas</button>
+    <button data-go="breg">${icon('file-spreadsheet')}Registro</button>
+    <button data-go="bset">${icon('settings')}Ajustes</button>` : `
     <button data-go="home">${icon('house')}Inicio</button>
     <button data-go="movs">${icon('list')}Movimientos</button>
     <button class="fab" id="fab" aria-label="Nuevo movimiento">${icon('plus')}</button>
@@ -28,8 +38,9 @@ function buildNav() {
   nav.onclick = e => {
     const b = e.target.closest('button');
     if (!b) return;
-    if (b.id === 'fab') openTx();
-    else if (b.dataset.go) go(b.dataset.go, b.dataset.go === 'movs' ? {} : undefined);
+    if (b.id === 'fab') return currentMode() === 'biz' ? openBizCost() : openTx();
+    if (b.dataset.mode) return switchMode(b.dataset.mode);
+    if (b.dataset.go) go(b.dataset.go, b.dataset.go === 'movs' ? {} : undefined);
   };
 }
 
@@ -61,7 +72,11 @@ function showApp() {
   // Las notificaciones abren la app en Mercado (…/#mercado).
   // El aviso de un informe abre la app en ese informe (…/#informe/ID).
   const rep = location.hash.match(/^#informe\/(.+)$/);
-  go(location.hash === '#mercado' || rep ? 'market' : 'home');
+  // Vuelve al sector donde estabas la última vez (personal o negocio), salvo que una notificación pida otra cosa.
+  let lastMode = 'personal';
+  try { lastMode = localStorage.getItem('ft-mode') || 'personal'; } catch { /* sin almacenamiento */ }
+  if (location.hash === '#negocio' || (lastMode === 'biz' && !location.hash)) switchMode('biz');
+  else go(location.hash === '#mercado' || rep ? 'market' : 'home');
   if (rep) {
     const id = decodeURIComponent(rep[1]);
     import('./sheets/informe.js').then(async m => {
@@ -84,7 +99,13 @@ async function boot() {
   register('reports', renderReports);
   register('more', renderMore);
   register('market', renderMarket);
-  buildNav();
+  register('bres', renderBizHome);
+  register('bcamp', renderBizCampaigns);
+  register('breg', renderBizLog);
+  register('bset', renderBizSettings);
+  // Al cambiar de sector se rearma la barra y se abre la primera pantalla de ese sector.
+  onMode(mode => { buildNav(mode); go(mode === 'biz' ? 'bres' : 'home'); });
+  buildNav('personal');
 
   await load();
   subscribe(() => {

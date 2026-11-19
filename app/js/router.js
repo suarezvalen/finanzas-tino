@@ -21,3 +21,15 @@ export function rerender() {
   views[current](el);
   el.scrollTop = top;
 }
+
+/* ---------- Personal / Negocio ----------
+ * El negocio es un sector aparte, con su propia barra de abajo. main.js arma la barra según el modo. */
+let modeFn = null;
+let mode = 'personal';
+export const onMode = fn => { modeFn = fn; };
+export const currentMode = () => mode;
+export function switchMode(m) {
+  mode = m === 'biz' ? 'biz' : 'personal';
+  try { localStorage.setItem('ft-mode', mode); } catch { /* sin almacenamiento */ }
+  modeFn?.(mode);
+}

@@ -18,6 +18,9 @@ import { goals, debts } from '../store.js';
 import { openSync, syncLabel } from '../sheets/sync.js';
 import { openSecurity, securityLabel } from '../sheets/security.js';
 import { openBulk } from '../sheets/bulk.js';
+import { switchMode } from '../router.js';
+import { eco, hasBiz, lastDay } from '../logic/biz.js';
+import { esc } from '../ui.js';
 
 
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -40,6 +43,8 @@ export function renderMore(el) {
       <div><b>Instalala en tu iPhone</b>
         <ol><li>Abrí esta página en <b>Safari</b></li><li>Tocá ${icon('share')} <b>Compartir</b></li><li>Elegí ${icon('square-plus')} <b>Agregar a inicio</b></li></ol></div>
     </section>`}
+    <button class="card card-cta biz-entry" data-act="biz"><span class="cta-ic">${icon('store')}</span>
+      <span class="info"><b>Negocio${hasBiz() ? ` · ${esc(eco().name)}` : ''}</b><small>${hasBiz() ? `Ventas, campañas y gastos al día${lastDay() ? ' · datos hasta el ' + lastDay().split('-').reverse().slice(0, 2).join('/') : ''}` : 'Ventas, gastos y campañas, aparte de tus finanzas'}</small></span>${icon('chevron-right', 'chev')}</button>
     <div class="grid">
       ${tile('cards', 'credit-card', 'Tarjetas y cuotas', nCards ? plural(nCards, 'tarjeta', 'tarjetas') : 'Resúmenes y cuotas')}
       ${tile('budgets', 'gauge', 'Presupuestos', nBudgets ? plural(nBudgets, 'categoría con límite', 'categorías con límite') : 'Total y por categoría')}
@@ -62,6 +67,7 @@ export function renderMore(el) {
     const b = e.target.closest('button');
     if (!b) return;
     switch (b.dataset.act) {
+      case 'biz': return switchMode('biz');
       case 'cards': return openCards();
       case 'budgets': return openBudgets();
       case 'recurring': return openRecurring();

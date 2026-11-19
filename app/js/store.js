@@ -7,11 +7,14 @@ import { curYm, today } from './dates.js';
 const DEFAULT_SETTINGS = { id: 'settings', name: '', budget: 0, hideAmounts: false, onboarded: false, lastAccount: {} };
 // Inflación mensual (% IPC) por mes 'AAAA-MM'. manual: meses cargados a mano.
 const DEFAULT_INFLATION = { id: 'inflation', values: {}, manual: {}, fetchedAt: null };
-export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes'];
+export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes', 'biz_days', 'biz_cfg', 'biz_costs'];
+// El negocio vive aparte: nunca entra en saldos, movimientos, reportes ni copias de las finanzas personales.
+export const BIZ_KINDS = ['biz_days', 'biz_cfg', 'biz_costs'];
 
 export const state = {
   accounts: [], categories: [], transactions: [], recurring: [], investments: [], goals: [], debts: [],
   watch: [], alerts: [], alertlog: [], push: [], informes: [],
+  biz_days: [], biz_cfg: [], biz_costs: [],
   settings: { ...DEFAULT_SETTINGS },
   inflation: { ...DEFAULT_INFLATION },
 };
@@ -80,11 +83,12 @@ export async function setup({ accounts, categories, settings }) {
 }
 
 export async function replaceAll(data) {
-  await db.clearAll();
+  // Restaurar una copia personal no toca los datos del negocio.
+  await db.clearAll(db.STORES.filter(s => !BIZ_KINDS.includes(s)));
   // Al restaurar, todo queda como "sin subir" (y con fecha nueva) para que la nube tome esta versión.
   const t = now();
   const fresh = r => { const { _remote, ...rest } = r; return { ...rest, updatedAt: t }; };
-  for (const k of DATA_KINDS) await db.putMany(k, (data[k] || []).map(fresh));
+  for (const k of DATA_KINDS) if (!BIZ_KINDS.includes(k)) await db.putMany(k, (data[k] || []).map(fresh));
   await db.putMany('meta', [fresh({ ...DEFAULT_SETTINGS, ...data.settings, id: 'settings' })]);
   if (data.inflation) await db.putMany('meta', [fresh({ ...DEFAULT_INFLATION, ...data.inflation, id: 'inflation' })]);
   await load();
@@ -152,7 +156,7 @@ export async function applyRemote(rows) {
 }
 
 /** ¿Este dispositivo ya tiene datos propios? */
-export const hasLocalData = () => DATA_KINDS.some(k => state[k].some(r => !r.deleted)) || state.settings.onboarded;
+export const hasLocalData = () => DATA_KINDS.filter(k => !BIZ_KINDS.includes(k)).some(k => state[k].some(r => !r.deleted)) || state.settings.onboarded;
 
 /** Borra todo lo local y deja la app vacía (para traer los datos de la nube). */
 export async function resetLocal() {
@@ -222,3 +226,8 @@ export const categorySpent = (catId, ym = curYm()) =>
 
 export const sortedTxs = (list = txs()) =>
   [...list].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+/* ---------- Negocio ---------- */
+export const bizDays = () => live('biz_days').sort((a, b) => a.date.localeCompare(b.date));
+export const bizCfg = id => state.biz_cfg.find(x => x.id === id && !x.deleted) || null;
+export const bizCosts = () => live('biz_costs').sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.name.localeCompare(b.name));

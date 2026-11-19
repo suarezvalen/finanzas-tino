@@ -4,8 +4,9 @@ const DB_NAME = 'finanzas-tino';
 // v2 (etapa 2): 'recurring'. v3 (etapa 3): 'investments', 'goals', 'debts'.
 // v4 (mercado): 'watch' (seguimiento), 'alerts' (reglas), 'alertlog' (avisos), 'push' (dispositivos para notificaciones).
 // v5: 'informes' (informes diarios y semanales que arma la rutina en la nube).
-const VERSION = 5;
-export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes'];
+// v6 (negocio): 'biz_days' (un día del negocio: ventas, embudo, anuncios), 'biz_cfg' (economía y preferencias), 'biz_costs' (gastos del negocio).
+const VERSION = 6;
+export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes', 'biz_days', 'biz_cfg', 'biz_costs'];
 
 let dbPromise;
 function open() {
@@ -46,11 +47,11 @@ export async function putMany(store, items) {
   });
 }
 
-export async function clearAll() {
+export async function clearAll(stores = STORES) {
   const db = await open();
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORES, 'readwrite');
-    for (const s of STORES) tx.objectStore(s).clear();
+    const tx = db.transaction(stores, 'readwrite');
+    for (const s of stores) tx.objectStore(s).clear();
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
   });

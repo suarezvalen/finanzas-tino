@@ -1,12 +1,12 @@
 // Service worker: permite abrir la app sin internet.
 // Con conexión siempre trae la última versión; sin conexión usa la copia guardada.
 // Al publicar cambios, subí VERSION para limpiar copias viejas.
-const VERSION = 'v2.3.0';
+const VERSION = 'v2.4.0';
 const CACHE = `ft-${VERSION}`;
 const FONTS = 'ft-fonts';
 
 const ASSETS = [
-  './', 'index.html', 'manifest.webmanifest', 'css/styles.css',
+  './', 'index.html', 'manifest.webmanifest', 'css/styles.css', 'css/biz.css',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
   'js/main.js', 'js/store.js', 'js/db.js', 'js/dates.js', 'js/ui.js', 'js/router.js',
   'js/components.js', 'js/constants.js', 'js/icons.js', 'js/icons-data.js',
@@ -19,6 +19,7 @@ const ASSETS = [
   'js/logic/sync.js', 'js/logic/parse.js', 'js/sheets/sync.js', 'js/sheets/lock.js', 'js/sheets/security.js', 'js/sheets/bulk.js',
   'js/logic/ta.js', 'js/logic/market-core.js', 'js/logic/market.js', 'js/logic/analysis.js', 'js/logic/alerts-core.js', 'js/logic/push.js', 'js/logic/market-hours.js', 'js/logic/news-core.js', 'js/logic/macro-core.js',
   'js/views/market.js', 'js/sheets/asset.js', 'js/sheets/alerts.js', 'js/sheets/pick-asset.js', 'js/sheets/informe.js',
+  'js/views/biz.js', 'js/sheets/biz.js', 'js/logic/biz.js', 'js/logic/biz-format.js', 'js/logic/biz-excel.js', 'js/logic/xlsx.js',
   'vendor/jspdf.umd.min.js',
 ];
 

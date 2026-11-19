@@ -8,7 +8,7 @@ import { openInvestments } from '../sheets/investments.js';
 import { openGoals } from '../sheets/goals.js';
 import { openDebts } from '../sheets/debts.js';
 import { today, curYm, daysInMonth, cap, monthName } from '../dates.js';
-import { go } from '../router.js';
+import { go, switchMode } from '../router.js';
 import { openTx } from '../sheets/tx.js';
 import { openAccounts, openAccountEdit } from '../sheets/accounts.js';
 import { openBudgets, budgetAlerts } from '../sheets/budgets.js';
@@ -93,6 +93,7 @@ export function renderHome(el) {
     <header class="top">
       <div class="avatar">${esc(initial)}</div>
       <div class="hi"><small>${dateStr}</small><strong>${greeting()}${s.name ? ', ' + esc(s.name) : ''}</strong></div>
+      <button class="icon-btn biz-switch" data-act="biz" aria-label="Ir al negocio">${icon('store')}</button>
       <button class="icon-btn" data-act="hide" aria-label="${s.hideAmounts ? 'Mostrar' : 'Ocultar'} montos">${icon(s.hideAmounts ? 'eye-off' : 'eye')}</button>
       <button class="icon-btn" data-act="upcoming" aria-label="Próximos vencimientos">${icon('bell')}${alerts ? `<span class="dot-count">${alerts}</span>` : ''}</button>
     </header>
@@ -137,6 +138,7 @@ export function renderHome(el) {
     if (d.up) return handleUpcoming(d.up);
     if (d.acc) return getAccount(d.acc)?.type === 'credit' ? openCard(d.acc) : go('movs', { accountId: d.acc });
     switch (d.act) {
+      case 'biz': return switchMode('biz');
       case 'hide': return saveSettings({ hideAmounts: !s.hideAmounts });
       case 'budget': return openBudgets();
       case 'upcoming': return openUpcoming();
