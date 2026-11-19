@@ -10,7 +10,7 @@ import {
   groupAds, adsetVerdicts, VERDICTS, fmtRoas, alerts, goalStatus, weekdayStats, monthsWithData, latestReport,
   lastDay, firstDay, shortDay, statusLabel, costCat, costArs, costInPeriod, dayCalc,
 } from '../logic/biz.js';
-import { sync, session, syncStatus } from '../logic/sync.js';
+import { refreshBiz, session, syncStatus } from '../logic/sync.js';
 import {
   openBizCost, openAdset, openBizReport, openBizExport, openBizImport, openGoalEdit, openCreatives, openDayDetail,
 } from '../sheets/biz.js';
@@ -155,9 +155,12 @@ function reportCard() {
 }
 
 /* ---------- Resumen ---------- */
+let autoTried = false;
 export function renderBizHome(el) {
   if (!hasBiz()) {
     el.innerHTML = `${header('Negocio', exitBtn())}${noData()}`;
+    // Si está vacío, se bajan los datos del negocio una vez sola (por si una versión vieja de la app los salteó).
+    if (!autoTried && session()) { autoTried = true; refreshBiz().catch(() => {}); }
     return bindCommon(el);
   }
   const e = eco();
@@ -406,7 +409,7 @@ function bindCommon(el) {
       case 'sync': {
         if (!session()) { toast('Iniciá sesión en Más → Sincronización para recibir los datos', { icon: 'cloud' }); return; }
         b.classList.add('spin');
-        try { const n = await sync(); toast(n ? 'Datos actualizados' : 'Ya tenés lo último', { icon: 'circle-check' }); }
+        try { const n = await refreshBiz(); toast(n ? 'Datos actualizados' : 'Ya tenés lo último', { icon: 'circle-check' }); }
         catch { toast('No se pudo actualizar. Probá de nuevo con internet.', { icon: 'triangle-alert' }); }
         b.classList.remove('spin');
         return;

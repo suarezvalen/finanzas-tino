@@ -1,7 +1,7 @@
 // Sincronización con la nube (Supabase), sin librerías: usa su API REST directamente.
 // Tabla `records`: una fila por registro (cuenta, movimiento, etc.), protegida por usuario.
 // La sesión y el estado de sincronización se guardan solo en este dispositivo (localStorage).
-import { dirtyRows, markSynced, applyRemote, resetLocal } from '../store.js';
+import { dirtyRows, markSynced, applyRemote, resetLocal, DATA_KINDS, BIZ_KINDS } from '../store.js';
 import { SYNC } from '../constants.js';
 
 const LS_AUTH = 'ft-auth', LS_SYNC = 'ft-sync', LS_CFG = 'ft-sync-config';
@@ -157,13 +157,39 @@ async function run() {
       cursor = page[page.length - 1].server_ts;
       if (page.length < 1000) break;
     }
-    ls.set(LS_SYNC, { cursor, lastSync: new Date().toISOString() });
+    // 3) Tipos de datos que una versión anterior de la app no conocía: esa versión los salteó pero igual avanzó
+    //    el cursor, así que se bajan completos una vez (pasó con el negocio, que llegó antes que la versión nueva).
+    const known = info.kinds || (info.cursor ? LEGACY_KINDS : DATA_KINDS);
+    const missing = DATA_KINDS.filter(k => !known.includes(k));
+    if (missing.length) pulled += await pullKinds(missing);
+    ls.set(LS_SYNC, { cursor, lastSync: new Date().toISOString(), kinds: DATA_KINDS });
     setStatus('ok');
     return pulled;
   } catch (e) {
     setStatus(e.status === 401 ? 'auth' : e.status === 0 ? 'offline' : 'error', e.message);
     throw e;
   }
+}
+
+// Lo que conocía la app antes de que el estado de sincronización guardara la lista de tipos (hasta la 2.4.0).
+const LEGACY_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes'];
+
+/** Baja todos los registros de esos tipos, sin mirar el cursor. */
+export async function pullKinds(kinds) {
+  let pulled = 0;
+  for (let offset = 0; ; offset += 1000) {
+    const page = await authed(`/rest/v1/records?select=kind,id,data,updated_at,deleted,server_ts&kind=in.(${kinds.join(',')})&order=server_ts.asc&limit=1000&offset=${offset}`);
+    pulled += await applyRemote(page);
+    if (page.length < 1000) break;
+  }
+  return pulled;
+}
+
+/** Vuelve a bajar todo lo del negocio (botón Actualizar del negocio, por si algo quedó afuera). */
+export async function refreshBiz() {
+  if (!isConfigured() || !session()) return 0;
+  const n = await sync();
+  return n + await pullKinds(BIZ_KINDS);
 }
 
 /** Primera vez en un dispositivo: reemplaza lo local por lo que hay en la nube. */
