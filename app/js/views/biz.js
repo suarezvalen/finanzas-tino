@@ -1,5 +1,5 @@
 // Sector Negocio: Resumen, Campañas, Registro y Ajustes. Aparte de las finanzas personales.
-import { bizDays, bizCosts, bizCfg, upsert } from '../store.js';
+import { bizDays, bizCosts, bizCfg, bizInsights, upsert } from '../store.js';
 import { icon } from '../icons.js';
 import { money, esc, signed, toast, ensureVisible } from '../ui.js';
 import { catIc, empty, sparkline } from '../components.js';
@@ -154,6 +154,15 @@ function reportCard() {
     <span class="info"><b>Informe del ${shortDay(d.date)}</b><small class="wrap">${esc(d.report.headline || 'Tocá para leerlo completo')}</small></span>${icon('chevron-right', 'chev')}</button>`;
 }
 
+function analysisCard() {
+  const ins = bizInsights()[0];
+  if (!ins) return '';
+  const fresh = ins.ideas.filter(i => i.status === 'nueva').length;
+  return `<button class="card card-cta analysis-card" data-goto="bana"><span class="cta-ic">${icon('sparkles')}</span>
+    <span class="info"><b>Análisis del ${shortDay(ins.date)}</b><small class="wrap">${esc(ins.headline)}</small>
+    ${fresh ? `<small class="vchips"><span class="vchip">${fresh} idea${fresh === 1 ? '' : 's'} para probar</span></small>` : ''}</span>${icon('chevron-right', 'chev')}</button>`;
+}
+
 /* ---------- Resumen ---------- */
 let autoTried = false;
 export function renderBizHome(el) {
@@ -189,6 +198,7 @@ export function renderBizHome(el) {
       <p class="help" style="margin-top:10px">${be ? `Equilibrio ${fmtRoas(be)}: por debajo, la publicidad te hace perder plata. Lo máximo que podés pagar por venta es ${money(contribution(e))}.` : 'Falta cargar la economía del producto para saber el equilibrio.'}</p>
     </section>
 
+    ${analysisCard()}
     ${reportCard()}
     ${todoCard()}
 

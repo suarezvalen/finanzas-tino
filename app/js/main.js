@@ -1,6 +1,7 @@
 import { load, state, subscribe, dirtyRows, wipe } from './store.js';
 import { register, go, rerender, onMode, switchMode, currentMode } from './router.js';
 import { renderBizHome, renderBizCampaigns, renderBizLog, renderBizSettings } from './views/biz.js';
+import { renderBizAnalysis } from './views/biz-analysis.js';
 import { openBizCost } from './sheets/biz.js';
 import { icon } from './icons.js';
 import { refreshSheets, esc, toast } from './ui.js';
@@ -23,10 +24,10 @@ function buildNav(mode = currentMode()) {
   const biz = mode === 'biz';
   document.getElementById('app').classList.toggle('biz-mode', biz);
   nav.innerHTML = biz ? `
-    <button data-mode="personal">${icon('house')}Personal</button>
     <button data-go="bres">${icon('chart-column')}Resumen</button>
-    <button class="fab" id="fab" aria-label="Nuevo gasto del negocio">${icon('plus')}</button>
     <button data-go="bcamp">${icon('target')}Campañas</button>
+    <button class="fab" id="fab" aria-label="Nuevo gasto del negocio">${icon('plus')}</button>
+    <button data-go="bana">${icon('sparkles')}Análisis</button>
     <button data-go="breg">${icon('file-spreadsheet')}Registro</button>
     <button data-go="bset">${icon('settings')}Ajustes</button>` : `
     <button data-go="home">${icon('house')}Inicio</button>
@@ -103,6 +104,7 @@ async function boot() {
   register('bcamp', renderBizCampaigns);
   register('breg', renderBizLog);
   register('bset', renderBizSettings);
+  register('bana', renderBizAnalysis);
   // Al cambiar de sector se rearma la barra y se abre la primera pantalla de ese sector.
   onMode(mode => { buildNav(mode); go(mode === 'biz' ? 'bres' : 'home'); });
   buildNav('personal');

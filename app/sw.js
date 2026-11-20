@@ -1,7 +1,7 @@
 // Service worker: permite abrir la app sin internet.
 // Con conexión siempre trae la última versión; sin conexión usa la copia guardada.
 // Al publicar cambios, subí VERSION para limpiar copias viejas.
-const VERSION = 'v2.4.2';
+const VERSION = 'v2.5.0';
 const CACHE = `ft-${VERSION}`;
 const FONTS = 'ft-fonts';
 
@@ -19,7 +19,7 @@ const ASSETS = [
   'js/logic/sync.js', 'js/logic/parse.js', 'js/sheets/sync.js', 'js/sheets/lock.js', 'js/sheets/security.js', 'js/sheets/bulk.js',
   'js/logic/ta.js', 'js/logic/market-core.js', 'js/logic/market.js', 'js/logic/analysis.js', 'js/logic/alerts-core.js', 'js/logic/push.js', 'js/logic/market-hours.js', 'js/logic/news-core.js', 'js/logic/macro-core.js',
   'js/views/market.js', 'js/sheets/asset.js', 'js/sheets/alerts.js', 'js/sheets/pick-asset.js', 'js/sheets/informe.js',
-  'js/views/biz.js', 'js/sheets/biz.js', 'js/logic/biz.js', 'js/logic/biz-format.js', 'js/logic/biz-excel.js', 'js/logic/xlsx.js',
+  'js/views/biz.js', 'js/sheets/biz.js', 'js/logic/biz.js', 'js/logic/biz-format.js', 'js/logic/biz-excel.js', 'js/logic/xlsx.js', 'js/views/biz-analysis.js',
   'vendor/jspdf.umd.min.js',
 ];
 

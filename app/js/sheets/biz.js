@@ -8,7 +8,7 @@ import {
   eco, prefs, breakEven, contribution, groupAds, adsetVerdicts, VERDICTS, fmtRoas, statusLabel, COST_CATS, costCat, usdRate,
   dayCalc, shortDay, makeBizPeriod, totals, lastDay, firstDay, monthsWithData,
 } from '../logic/biz.js';
-import { normalizeDay, normalizeEconomia, classify } from '../logic/biz-format.js';
+import { normalizeDay, normalizeEconomia, normalizeInsight, classify } from '../logic/biz-format.js';
 
 const pct = (v, d = 1) => (v == null || !Number.isFinite(v) ? '—' : `${(v * 100).toFixed(d).replace('.', ',')}%`);
 const roasCls = (r, be) => (r == null || !be ? '' : r >= be ? 'pos' : 'neg');
@@ -333,12 +333,14 @@ export function openBizImport() {
   input.onchange = async () => {
     const errors = [];
     const days = [];
+    const insights = [];
     let economia = null;
     for (const f of input.files) {
       let raw;
       try { raw = JSON.parse(await f.text()); } catch { errors.push(`${f.name}: no es un JSON válido`); continue; }
       const kind = classify(raw);
       if (kind === 'economia') economia = normalizeEconomia(raw, errors);
+      else if (kind === 'insight') { const x = normalizeInsight(raw, f.name, errors); if (x) insights.push(x); }
       else if (kind === 'day') { const d = normalizeDay(raw, f.name, errors); if (d) days.push(d); }
       else if (kind === 'days') for (const r of raw) { const d = normalizeDay(r, f.name, errors); if (d) days.push(d); }
       else errors.push(`${f.name}: no parece un archivo del negocio`);
@@ -346,7 +348,9 @@ export function openBizImport() {
     if (errors.length) { alert('No se pudo importar:\n\n' + errors.slice(0, 8).join('\n')); return; }
     if (days.length) await upsertMany('biz_days', days.map(d => ({ ...d, importedAt: new Date().toISOString() })));
     if (economia) await upsert('biz_cfg', economia);
-    toast(`${days.length ? `${days.length} día${days.length === 1 ? '' : 's'}` : ''}${days.length && economia ? ' y ' : ''}${economia ? 'la economía' : ''} importado${days.length > 1 ? 's' : ''}`, { icon: 'upload' });
+    if (insights.length) await upsertMany('biz_insights', insights);
+    const parts = [days.length && `${days.length} día${days.length === 1 ? '' : 's'}`, insights.length && `${insights.length} análisis`, economia && 'la economía'].filter(Boolean);
+    toast(`Importado: ${parts.join(', ')}`, { icon: 'upload' });
   };
   input.click();
 }

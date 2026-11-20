@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.4.2';
+export const APP_VERSION = '2.5.0';
 
 // Sincronización (Supabase). La clave "publishable/anon" es pública por diseño:
 // los datos quedan protegidos por usuario (Row Level Security en la tabla `records`).

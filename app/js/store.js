@@ -7,14 +7,14 @@ import { curYm, today } from './dates.js';
 const DEFAULT_SETTINGS = { id: 'settings', name: '', budget: 0, hideAmounts: false, onboarded: false, lastAccount: {} };
 // Inflación mensual (% IPC) por mes 'AAAA-MM'. manual: meses cargados a mano.
 const DEFAULT_INFLATION = { id: 'inflation', values: {}, manual: {}, fetchedAt: null };
-export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes', 'biz_days', 'biz_cfg', 'biz_costs'];
+export const DATA_KINDS = ['accounts', 'categories', 'transactions', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes', 'biz_days', 'biz_cfg', 'biz_costs', 'biz_insights', 'biz_notes'];
 // El negocio vive aparte: nunca entra en saldos, movimientos, reportes ni copias de las finanzas personales.
-export const BIZ_KINDS = ['biz_days', 'biz_cfg', 'biz_costs'];
+export const BIZ_KINDS = ['biz_days', 'biz_cfg', 'biz_costs', 'biz_insights', 'biz_notes'];
 
 export const state = {
   accounts: [], categories: [], transactions: [], recurring: [], investments: [], goals: [], debts: [],
   watch: [], alerts: [], alertlog: [], push: [], informes: [],
-  biz_days: [], biz_cfg: [], biz_costs: [],
+  biz_days: [], biz_cfg: [], biz_costs: [], biz_insights: [], biz_notes: [],
   settings: { ...DEFAULT_SETTINGS },
   inflation: { ...DEFAULT_INFLATION },
 };
@@ -231,3 +231,5 @@ export const sortedTxs = (list = txs()) =>
 export const bizDays = () => live('biz_days').sort((a, b) => a.date.localeCompare(b.date));
 export const bizCfg = id => state.biz_cfg.find(x => x.id === id && !x.deleted) || null;
 export const bizCosts = () => live('biz_costs').sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.name.localeCompare(b.name));
+export const bizInsights = () => live('biz_insights').sort((a, b) => b.date.localeCompare(a.date));
+export const bizNotes = () => live('biz_notes').sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.updatedAt || '').localeCompare(a.updatedAt || ''));

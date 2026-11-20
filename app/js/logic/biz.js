@@ -61,7 +61,8 @@ const sum = (arr, f) => arr.reduce((s, x) => s + (f(x) || 0), 0);
 export const adSpendOf = d => Math.max(sum(d.ads || [], a => a.spend), d.adsTotal?.spend || 0);
 
 export function dayCalc(d, e = eco(), p = prefs(), costs = bizCosts()) {
-  const net = (d.sales?.net || 0) - (d.sales?.refunds || 0);
+  // El neto de Shopify (net_sales) ya descuenta descuentos y devoluciones: las devoluciones se muestran aparte, no se restan de nuevo.
+  const net = d.sales?.net || 0;
   const orders = d.sales?.orders || 0;
   const fees = net * e.feePct / 100;
   const iibb = net * e.iibbPct / 100;

@@ -33,7 +33,7 @@ OneDrive y fuera del repositorio. Se saca de Supabase → Project Settings → A
 {
   "fecha": "2026-01-15",                       // día cerrado, hora de Argentina
   "fuente": "reporte-diario",
-  "ventas": { "bruto": 100000, "descuentos": 5000, "neto": 95000, "devoluciones": 0, "pedidos": 6 },
+  "ventas": { "bruto": 100000, "descuentos": 5000, "neto": 95000, "devoluciones": 0, "pedidos": 6 },   // neto = net_sales de Shopify: ya descuenta descuentos y devoluciones
   "embudo": { "visitas": 250, "carritos": 20, "checkouts": 18, "compras": 6 },
   "meta": { "gasto": 40000 },                  // total de la cuenta (por si falta algún anuncio)
   "anuncios": [{                               // nivel anuncio: con gasto > 0 o activos (aunque no hayan gastado)
@@ -48,3 +48,38 @@ OneDrive y fuera del repositorio. Se saca de Supabase → Project Settings → A
 ```
 
 La validación está en `app/js/logic/biz-format.js` (la usan la app y este script).
+
+## Análisis diario
+
+Después del reporte, la misma tarea escribe `analisis/AAAA-MM-DD.json` (dentro de la carpeta de los días) y
+actualiza `analisis/memoria.json`, que guarda los aprendizajes y las ideas vigentes para que cada día arranque de lo
+acumulado. `save.mjs` sube los análisis como `biz_insights`; la app los muestra en Negocio → Análisis.
+
+Lo que marcás en la app (idea aplicada, funcionó, no funcionó, descartada) y los cambios que anotás quedan en
+`biz_notes`. `node tools/negocio/leer.mjs` los devuelve en JSON para que el análisis del día siguiente los mida.
+
+```jsonc
+{
+  "fecha": "2026-01-15",            // el día analizado
+  "tipo": "diario",                 // o "semanal" (los lunes)
+  "titular": "Una línea con lo más importante",
+  "resumen": "2 a 4 párrafos: qué pasó y por qué (separados por \n)",
+  "numeros": [{ "etiqueta": "Ventas", "valor": "$ 95.000", "cambio": "+20%", "tono": "bueno" }],   // bueno | malo | neutro
+  "por_que": [{ "factor": "Anuncio A", "detalle": "3 de 6 ventas…", "peso": "alto" }],            // alto | medio | bajo
+  "sin_ventas": null,               // o el texto que explica por qué no se vendió
+  "aprendizajes": [{
+    "id": "a-cupon", "texto": "…", "evidencia": "…", "certeza": "probable",   // firme | probable | hipotesis
+    "desde": "2026-01-10", "actualizado": "2026-01-15", "tendencia": "se_confirma"   // nuevo | se_confirma | se_debilita | igual
+  }],
+  "ideas": [{
+    "id": "i-titulo-landing", "area": "landing",   // landing | anuncios | email | oferta | marketing | contenido | otro
+    "titulo": "…", "por_que": "…", "como": "Paso a paso (markdown simple)",
+    "impacto": "alto", "esfuerzo": "bajo", "basada_en": ["a-cupon"],
+    "estado": "nueva",               // nueva | en_prueba | funciono | no_funciono | descartada
+    "resultado": "",                 // al cerrarla, con números
+    "desde": "2026-01-15"
+  }],
+  "seguimiento": [{ "idea": "i-titulo-landing", "texto": "3 días después: conversión 3,1% contra 2,4% antes…" }],
+  "proximos_pasos": ["…"]
+}
+```

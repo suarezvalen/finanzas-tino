@@ -5,8 +5,9 @@ const DB_NAME = 'finanzas-tino';
 // v4 (mercado): 'watch' (seguimiento), 'alerts' (reglas), 'alertlog' (avisos), 'push' (dispositivos para notificaciones).
 // v5: 'informes' (informes diarios y semanales que arma la rutina en la nube).
 // v6 (negocio): 'biz_days' (un día del negocio: ventas, embudo, anuncios), 'biz_cfg' (economía y preferencias), 'biz_costs' (gastos del negocio).
-const VERSION = 6;
-export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes', 'biz_days', 'biz_cfg', 'biz_costs'];
+// v7: 'biz_insights' (análisis diario del negocio), 'biz_notes' (ideas que marcaste y cambios que anotaste).
+const VERSION = 7;
+export const STORES = ['accounts', 'categories', 'transactions', 'meta', 'recurring', 'investments', 'goals', 'debts', 'watch', 'alerts', 'alertlog', 'push', 'informes', 'biz_days', 'biz_cfg', 'biz_costs', 'biz_insights', 'biz_notes'];
 
 let dbPromise;
 function open() {
